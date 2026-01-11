@@ -20,7 +20,7 @@ interface SessionData {
   mergedImage: string | null;
 }
 
-// --- Utilities ---
+// --- Image Utilities ---
 const resizeImage = (base64Str: string, maxWidth: number = 1280): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -202,7 +202,7 @@ const CameraView: React.FC<{
             <span className="text-[8px]">{isGhost ? 'ON' : 'OFF'}</span>
           </button>
         ) : <div className="w-16" />}
-        <button onClick={capture} className="w-24 h-24 border-4 border-white/30 rounded-full flex items-center justify-center active:scale-90 transition-transform">
+        <button onClick={capture} className="w-24 h-24 border-4 border-white/30 rounded-full flex items-center justify-center active:scale-90 transition-transform shadow-lg">
           <div className="w-20 h-20 bg-white rounded-full"></div>
         </button>
         <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex flex-col items-center justify-center text-white active:bg-white/20">
@@ -225,7 +225,7 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
     try {
       const res = await fetch(mergedImage);
       const b = await res.blob();
-      const f = new File([b], 'yorae.jpg', { type: 'image/jpeg' });
+      const f = new File([b], 'yorae_result.jpg', { type: 'image/jpeg' });
       if (navigator.share) await navigator.share({ files: [f], title: '요래됐슴당', text: '이랬는데 요래됐슴당!' });
       else alert("이미지를 길게 눌러 저장하세요.");
     } catch (e) { alert("이미지를 길게 눌러 저장하세요."); }
@@ -233,15 +233,15 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
   return (
     <div className="flex-1 flex flex-col p-8 bg-white overflow-y-auto">
       <div className="text-center my-10">
-        <p className="text-gray-600 font-black mb-1 text-lg">이랬는데...</p>
+        <p className="text-gray-900 font-black mb-1 text-lg">이랬는데...</p>
         <h1 className="text-4xl font-black" style={{ color: MINT_COLOR }}>요래됐슴당!</h1>
       </div>
-      <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-50 mb-12">
+      <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-100 mb-12">
         <img src={mergedImage || ''} className="w-full" alt="Result" />
       </div>
-      <div className="space-y-4 pb-12">
-        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-lg active:scale-95 transition-all">이미지 저장 및 공유</button>
-        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-500 active:bg-gray-50 transition-all">처음으로 돌아가기</button>
+      <div className="space-y-4 pb-12 safe-bottom">
+        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">이미지 저장 및 공유</button>
+        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-900 active:bg-gray-50 transition-all">처음으로 돌아가기</button>
       </div>
     </div>
   );
@@ -307,12 +307,12 @@ const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white max-w-md mx-auto shadow-xl relative overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-white max-w-md mx-auto shadow-2xl relative overflow-hidden">
       {step === AppStep.HOME && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#FAFAFA]">
           <span className="text-7xl mb-8">✨</span>
           <h1 className="text-4xl font-black mb-4 text-gray-900">요래됐슴당</h1>
-          <p className="text-gray-600 text-sm mb-16 leading-relaxed font-bold">청소 전과 후를 완벽하게 비교하세요.<br/>공간의 변화를 기록해볼까요?</p>
+          <p className="text-gray-900 text-sm mb-16 leading-relaxed font-bold px-4">청소 전과 후를 완벽하게 비교하세요.<br/>공간의 변화를 기록해볼까요?</p>
           <div className="w-full">
             <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-white text-2xl font-black shadow-xl active:scale-95 transition-all">청소 시작하기</button>
           </div>
@@ -332,7 +332,7 @@ const App: React.FC = () => {
       {step === AppStep.CLEANING && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-white">
           <div className="relative mb-12">
-            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-gray-50">
+            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-gray-100">
               <img src={session.beforeImage || ''} className="w-full h-full object-cover grayscale-[0.2]" alt="Before" />
             </div>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
