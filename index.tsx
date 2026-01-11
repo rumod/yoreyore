@@ -119,21 +119,25 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const boxY = canvas.height - boxHeight - fontSize;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    // Fix: Using type assertion to any to bypass narrowing issue where TypeScript 
-    // might consider the 'else' block unreachable if 'roundRect' is in the DOM types.
-    if ('roundRect' in ctx) {
+    // Use simple fillRect if roundRect is not supported
+    if (typeof (ctx as any).roundRect === 'function') {
+      ctx.beginPath();
       (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
       ctx.fill();
     } else {
-      (ctx as any).fillRect(boxX, boxY, boxWidth, boxHeight);
+      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
     }
+    
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(footerText, boxX + boxWidth / 2, boxY + boxHeight / 2 + 2);
 
     return canvas.toDataURL('image/jpeg', 0.9);
-  } catch (e) { return ''; }
+  } catch (e) { 
+    console.error("Merge failed", e);
+    return ''; 
+  }
 };
 
 const fileToBase64 = (file: File): Promise<string> => {
@@ -161,12 +165,16 @@ const CameraView: React.FC<{
 
   useEffect(() => {
     let currentStream: MediaStream | null = null;
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
-      .then(s => {
-        currentStream = s;
-        if (videoRef.current) videoRef.current.srcObject = s;
-      })
-      .catch(() => setError("카메라 권한을 확인해주세요."));
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false })
+        .then(s => {
+          currentStream = s;
+          if (videoRef.current) videoRef.current.srcObject = s;
+        })
+        .catch(() => setError("카메라 권한을 허용해주세요."));
+    } else {
+      setError("브라우저가 카메라를 지원하지 않습니다.");
+    }
     return () => currentStream?.getTracks().forEach(t => t.stop());
   }, []);
 
@@ -176,8 +184,11 @@ const CameraView: React.FC<{
       const c = canvasRef.current;
       c.width = v.videoWidth;
       c.height = v.videoHeight;
-      c.getContext('2d')?.drawImage(v, 0, 0);
-      onCapture(c.toDataURL('image/jpeg', 0.9));
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(v, 0, 0);
+        onCapture(c.toDataURL('image/jpeg', 0.9));
+      }
     }
   };
 
@@ -192,13 +203,22 @@ const CameraView: React.FC<{
         </span>
         <div className="w-12"></div>
       </div>
-      <div className="flex-1 relative flex items-center justify-center">
-        {error ? <div className="text-white text-center font-bold px-10">{error}</div> : <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
-        {mode === 'after' && beforeThumbnail && isGhost && <img src={beforeThumbnail} className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-screen pointer-events-none" />}
+      <div className="flex-1 relative flex items-center justify-center overflow-hidden">
+        {error ? (
+          <div className="text-white text-center font-bold px-10">
+            <p className="mb-4">{error}</p>
+            <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black rounded-full text-sm">다시 시도</button>
+          </div>
+        ) : (
+          <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+        )}
+        {mode === 'after' && beforeThumbnail && isGhost && (
+          <img src={beforeThumbnail} className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-screen pointer-events-none" />
+        )}
       </div>
       <div className="h-44 flex justify-between items-center px-10 bg-black safe-bottom border-t border-white/10">
         {mode === 'after' ? (
-          <button onClick={() => setIsGhost(!isGhost)} className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center ${isGhost ? 'bg-white/20 border-white/50 text-white' : 'text-white/40 border-white/10'}`}>
+          <button onClick={() => setIsGhost(!isGhost)} className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-colors ${isGhost ? 'bg-white/20 border-white/50 text-white' : 'text-white/40 border-white/10'}`}>
             <span className="text-[10px] font-black uppercase tracking-tighter">가이드</span>
             <span className="text-[8px]">{isGhost ? 'ON' : 'OFF'}</span>
           </button>
@@ -211,7 +231,10 @@ const CameraView: React.FC<{
           <span className="text-[10px] mt-1 font-bold">파일</span>
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={async (e) => {
             const f = e.target.files?.[0];
-            if (f) onBeforeImageChange?.(await fileToBase64(f));
+            if (f) {
+              const base64 = await fileToBase64(f);
+              onCapture(base64);
+            }
           }} />
         </button>
       </div>
@@ -227,9 +250,17 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
       const res = await fetch(mergedImage);
       const b = await res.blob();
       const f = new File([b], 'yorae_result.jpg', { type: 'image/jpeg' });
-      if (navigator.share) await navigator.share({ files: [f], title: '요래됐슴당', text: '이랬는데 요래됐슴당!' });
-      else alert("이미지를 길게 눌러 저장하세요.");
-    } catch (e) { alert("이미지를 길게 눌러 저장하세요."); }
+      if (navigator.share) {
+        await navigator.share({ files: [f], title: '요래됐슴당', text: '이랬는데 요래됐슴당!' });
+      } else {
+        const link = document.createElement('a');
+        link.href = mergedImage;
+        link.download = 'yorae_result.jpg';
+        link.click();
+      }
+    } catch (e) { 
+      alert("이미지를 길게 눌러 저장하세요."); 
+    }
   };
   return (
     <div className="flex-1 flex flex-col p-8 bg-white overflow-y-auto">
@@ -237,8 +268,12 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
         <p className="text-gray-900 font-black mb-1 text-lg">이랬는데...</p>
         <h1 className="text-4xl font-black" style={{ color: MINT_COLOR }}>요래됐슴당!</h1>
       </div>
-      <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-100 mb-12">
-        <img src={mergedImage || ''} className="w-full" alt="Result" />
+      <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-4 border-gray-100 mb-12 bg-gray-50 aspect-[4/3] flex items-center justify-center">
+        {mergedImage ? (
+          <img src={mergedImage} className="w-full h-full object-contain" alt="Result" />
+        ) : (
+          <div className="text-gray-300 font-bold">이미지 생성 중...</div>
+        )}
       </div>
       <div className="space-y-4 pb-12 safe-bottom">
         <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">이미지 저장 및 공유</button>
@@ -262,7 +297,9 @@ const App: React.FC = () => {
         setSession(parsed);
         if (parsed.mergedImage) setStep(AppStep.RESULT);
         else if (parsed.beforeImage) setStep(AppStep.CLEANING);
-      } catch (e) { localStorage.removeItem('yorae_session'); }
+      } catch (e) { 
+        localStorage.removeItem('yorae_session'); 
+      }
     }
   }, []);
 
@@ -273,15 +310,16 @@ const App: React.FC = () => {
   }, [session]);
 
   useEffect(() => {
+    let interval: any;
     if (step === AppStep.CLEANING) {
-      const i = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500);
-      return () => clearInterval(i);
+      interval = setInterval(() => setDots(d => d.length >= 3 ? '' : d + '.'), 500);
     }
+    return () => clearInterval(interval);
   }, [step]);
 
   const handleBefore = async (img: string) => {
     const r = await resizeImage(img);
-    setSession({ ...session, beforeImage: r, startTime: Date.now() });
+    setSession({ ...session, beforeImage: r, startTime: Date.now(), afterImage: null, endTime: null, mergedImage: null });
     setStep(AppStep.CLEANING);
   };
 
@@ -294,10 +332,8 @@ const App: React.FC = () => {
   };
 
   const reset = () => {
-    if (confirm("기록을 중단하고 처음으로 돌아갈까요?")) {
-      localStorage.removeItem('yorae_session');
-      setSession({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null });
-      setStep(AppStep.HOME);
+    if (confirm("진행 중인 기록이 삭제됩니다. 처음으로 돌아갈까요?")) {
+      hardReset();
     }
   };
 
@@ -311,20 +347,29 @@ const App: React.FC = () => {
     <div className="min-h-screen flex flex-col bg-white max-w-md mx-auto shadow-2xl relative overflow-hidden">
       {step === AppStep.HOME && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#FAFAFA]">
-          <span className="text-7xl mb-8">✨</span>
-          <h1 className="text-4xl font-black mb-4 text-gray-900 tracking-tighter">요래됐슴당</h1>
+          <span className="text-7xl mb-8 animate-bounce">✨</span>
+          <h1 className="text-5xl font-black mb-4 text-gray-900 tracking-tighter">요래됐슴당</h1>
           <p className="text-gray-900 text-sm mb-16 leading-relaxed font-bold px-4">
             청소 전과 후를 완벽하게 비교하세요.<br/>
-            공간의 변화를 기록해볼까요?
+            변화하는 공간을 기록해보세요!
           </p>
-          <div className="w-full">
+          <div className="w-full space-y-4">
             <button 
               onClick={() => setStep(AppStep.BEFORE_CAPTURE)} 
               style={{ backgroundColor: MINT_COLOR }} 
-              className="w-full py-5 rounded-3xl text-white text-2xl font-black shadow-xl active:scale-95 transition-all"
+              className="w-full py-5 rounded-[2.5rem] text-white text-2xl font-black shadow-xl active:scale-95 transition-all"
             >
-              청소 시작하기
+              기록 시작하기
             </button>
+            {session.beforeImage && (
+               <button 
+               onClick={() => setStep(AppStep.CLEANING)} 
+               className="w-full py-4 rounded-[2.5rem] border-2 border-gray-200 text-gray-900 text-lg font-black active:bg-gray-100 transition-all"
+             >
+               기존 기록 이어하기
+             </button>
+            )}
+            <button onClick={hardReset} className="text-gray-400 text-xs font-bold pt-4">기록 초기화</button>
           </div>
         </div>
       )}
@@ -335,34 +380,35 @@ const App: React.FC = () => {
           onCapture={step === AppStep.BEFORE_CAPTURE ? handleBefore : handleAfter}
           onBack={() => setStep(step === AppStep.BEFORE_CAPTURE ? AppStep.HOME : AppStep.CLEANING)}
           beforeThumbnail={session.beforeImage}
-          onBeforeImageChange={(img) => setSession({...session, beforeImage: img})}
         />
       )}
 
       {step === AppStep.CLEANING && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-white">
           <div className="relative mb-12">
-            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-gray-100">
-              <img src={session.beforeImage || ''} className="w-full h-full object-cover grayscale-[0.2]" alt="Before" />
+            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden shadow-2xl border-8 border-gray-50 bg-gray-100">
+              <img src={session.beforeImage || ''} className="w-full h-full object-cover grayscale-[0.3]" alt="Before" />
             </div>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <p className="text-white font-black text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">이랬는데{dots}</p>
+              <p className="text-white font-black text-2xl drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]">이랬는데{dots}</p>
             </div>
           </div>
-          <h2 className="text-2xl font-black mb-10 text-gray-900">열심히 청소 중...</h2>
-          <button 
-            onClick={() => setStep(AppStep.AFTER_CAPTURE)} 
-            style={{ backgroundColor: MINT_COLOR }} 
-            className="w-full py-5 rounded-3xl text-white text-xl font-black shadow-xl active:scale-95 transition-all"
-          >
-            청소 완료! 사진 찍기
-          </button>
-          <button 
-            onClick={reset} 
-            className="mt-8 text-gray-900 text-sm font-black border-b border-gray-200 pb-1 hover:text-gray-600"
-          >
-            기록 중단하기
-          </button>
+          <h2 className="text-3xl font-black mb-10 text-gray-900">열심히 청소 중...</h2>
+          <div className="w-full space-y-4">
+            <button 
+              onClick={() => setStep(AppStep.AFTER_CAPTURE)} 
+              style={{ backgroundColor: MINT_COLOR }} 
+              className="w-full py-5 rounded-[2.5rem] text-white text-2xl font-black shadow-xl active:scale-95 transition-all"
+            >
+              청소 끝! 촬영하기
+            </button>
+            <button 
+              onClick={reset} 
+              className="w-full py-4 text-gray-900 text-sm font-black border-b border-gray-100 active:text-gray-400"
+            >
+              기록 중단하기
+            </button>
+          </div>
         </div>
       )}
 
@@ -371,9 +417,15 @@ const App: React.FC = () => {
   );
 };
 
-// --- Entry Point ---
-const container = document.getElementById('root');
-if (container) {
-  const root = createRoot(container);
-  root.render(<App />);
+// --- Entry Point with Error Catching ---
+try {
+  const container = document.getElementById('root');
+  if (container) {
+    const root = createRoot(container);
+    root.render(<App />);
+  }
+} catch (e) {
+  console.error("Critical Render Error", e);
+  const rootEl = document.getElementById('root');
+  if (rootEl) rootEl.innerHTML = `<div style="padding: 40px; text-align: center; font-weight: bold; color: red;">앱 실행 중 오류가 발생했습니다. 브라우저를 새로고침 해주세요.</div>`;
 }
