@@ -1,0 +1,21 @@
+
+{
+  "short_name": "요래됐슴당",
+  "name": "요래됐슴당 - 청소 전후 비교",
+  "icons": [
+    {
+      "src": "https://picsum.photos/192/192",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "https://picsum.photos/512/512",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ],
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#76D7C4",
+  "background_color": "#FFFFFF"
+}
