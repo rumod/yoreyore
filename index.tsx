@@ -119,14 +119,13 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const boxY = canvas.height - boxHeight - fontSize;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    // Fix: Use casting to any for the 'roundRect' in check to prevent TypeScript from narrowing ctx to 'never' in the else block.
-    // This happens if the environment's type definitions for CanvasRenderingContext2D already include roundRect as a mandatory property.
-    if ('roundRect' in (ctx as any)) {
-      ctx.beginPath();
+    // Fix: Using type assertion to any to bypass narrowing issue where TypeScript 
+    // might consider the 'else' block unreachable if 'roundRect' is in the DOM types.
+    if ('roundRect' in ctx) {
       (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
       ctx.fill();
     } else {
-      ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
+      (ctx as any).fillRect(boxX, boxY, boxWidth, boxHeight);
     }
     ctx.fillStyle = '#FFFFFF';
     ctx.textAlign = 'center';
@@ -313,10 +312,19 @@ const App: React.FC = () => {
       {step === AppStep.HOME && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#FAFAFA]">
           <span className="text-7xl mb-8">✨</span>
-          <h1 className="text-4xl font-black mb-4 text-gray-900">요래됐슴당</h1>
-          <p className="text-gray-900 text-sm mb-16 leading-relaxed font-bold px-4">청소 전과 후를 완벽하게 비교하세요.<br/>공간의 변화를 기록해볼까요?</p>
+          <h1 className="text-4xl font-black mb-4 text-gray-900 tracking-tighter">요래됐슴당</h1>
+          <p className="text-gray-900 text-sm mb-16 leading-relaxed font-bold px-4">
+            청소 전과 후를 완벽하게 비교하세요.<br/>
+            공간의 변화를 기록해볼까요?
+          </p>
           <div className="w-full">
-            <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-white text-2xl font-black shadow-xl active:scale-95 transition-all">청소 시작하기</button>
+            <button 
+              onClick={() => setStep(AppStep.BEFORE_CAPTURE)} 
+              style={{ backgroundColor: MINT_COLOR }} 
+              className="w-full py-5 rounded-3xl text-white text-2xl font-black shadow-xl active:scale-95 transition-all"
+            >
+              청소 시작하기
+            </button>
           </div>
         </div>
       )}
@@ -342,8 +350,19 @@ const App: React.FC = () => {
             </div>
           </div>
           <h2 className="text-2xl font-black mb-10 text-gray-900">열심히 청소 중...</h2>
-          <button onClick={() => setStep(AppStep.AFTER_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">청소 완료! 사진 찍기</button>
-          <button onClick={reset} className="mt-8 text-gray-400 text-sm font-bold border-b border-gray-100 pb-1">기록 중단하기</button>
+          <button 
+            onClick={() => setStep(AppStep.AFTER_CAPTURE)} 
+            style={{ backgroundColor: MINT_COLOR }} 
+            className="w-full py-5 rounded-3xl text-white text-xl font-black shadow-xl active:scale-95 transition-all"
+          >
+            청소 완료! 사진 찍기
+          </button>
+          <button 
+            onClick={reset} 
+            className="mt-8 text-gray-900 text-sm font-black border-b border-gray-200 pb-1 hover:text-gray-600"
+          >
+            기록 중단하기
+          </button>
         </div>
       )}
 
