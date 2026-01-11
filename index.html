@@ -17,6 +17,10 @@
     }
     #root { min-height: 100vh; }
   </style>
+  <script>
+    // process.env 참조 에러 방지를 위한 전역 객체 선언
+    window.process = { env: { API_KEY: "" } };
+  </script>
 <script type="importmap">
 {
   "imports": {
@@ -32,6 +36,6 @@
 </head>
 <body>
   <div id="root"></div>
-  <script type="module" src="./index.tsx"></script>
+  <script type="module" src="/index.tsx"></script>
 </body>
 </html>
