@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { AppStep, SessionData } from './types';
 import CameraView from './components/CameraView';
@@ -135,7 +134,7 @@ const App: React.FC = () => {
           <h1 className="text-3xl font-black tracking-tighter text-gray-900 mb-4">요래됐슴당</h1>
           <p className="text-gray-700 text-sm mb-16 leading-relaxed font-bold px-4">
             청소 전과 후를 완벽하게 비교하고 기록하세요.<br/>
-            어떻게 변했인지 지금 바로 시작해볼까요?
+            어떻게 변했는지 지금 바로 시작해볼까요?
           </p>
           <button 
             onClick={() => setStep(AppStep.BEFORE_CAPTURE)}

@@ -3,9 +3,10 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // 상대 경로 기반으로 빌드하여 어떤 경로에서도 리소스를 찾을 수 있게 함
+  // GitHub Pages 하위 경로 대응을 위해 상대 경로 설정
   base: './', 
   define: {
+    // 빌드 타임에 환경 변수 주입 및 객체 정의
     'process.env.API_KEY': JSON.stringify(process.env.API_KEY || ''),
     'process.env': { env: { API_KEY: "" } }
   },
