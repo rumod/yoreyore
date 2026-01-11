@@ -63,36 +63,58 @@ const mergeImages = async (before: string, after: string, duration: number): Pro
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
-    // 레이아웃: 세로 배치
-    const targetW = 1080;
-    const scaleB = targetW / imgB.width;
-    const scaleA = targetW / imgA.width;
-    const hB = imgB.height * scaleB;
-    const hA = imgA.height * scaleA;
+    const isBeforeLandscape = imgB.width > imgB.height;
+    const targetDim = 1080;
 
-    canvas.width = targetW;
-    canvas.height = hB + hA;
+    if (isBeforeLandscape) {
+      // 1. 가로형 사진: 상하(Vertical) 배치
+      const scaleB = targetDim / imgB.width;
+      const scaleA = targetDim / imgA.width;
+      const hB = imgB.height * scaleB;
+      const hA = imgA.height * scaleA;
 
-    ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.drawImage(imgB, 0, 0, targetW, hB);
-    ctx.drawImage(imgA, 0, hB, targetW, hA);
+      canvas.width = targetDim;
+      canvas.height = hB + hA;
 
-    // 하단 정보 캡슐
-    const fontSize = 42;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(imgB, 0, 0, targetDim, hB);
+      ctx.drawImage(imgA, 0, hB, targetDim, hA);
+    } else {
+      // 2. 세로형 사진: 좌우(Horizontal) 배치
+      const scaleB = targetDim / imgB.height;
+      const scaleA = targetDim / imgA.height;
+      const wB = imgB.width * scaleB;
+      const wA = imgA.width * scaleA;
+
+      canvas.width = wB + wA;
+      canvas.height = targetDim;
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(imgB, 0, 0, wB, targetDim);
+      ctx.drawImage(imgA, wB, 0, wA, targetDim);
+    }
+
+    // 하단 정보 캡슐 (이미지 크기에 비례하여 폰트 크기 조정)
+    const fontSize = Math.round(Math.max(canvas.width, canvas.height) * 0.035);
     const now = new Date();
     const dateStr = now.toLocaleDateString('ko-KR').replace(/ /g, '');
     const footerText = `${dateStr} | ${duration}분 소요 | 요래됐슴당 ✨`;
     
     ctx.font = `bold ${fontSize}px sans-serif`;
     const textW = ctx.measureText(footerText).width;
-    const pX = 60, pY = 30;
+    const pX = fontSize * 1.5, pY = fontSize * 0.8;
     const bW = textW + pX * 2, bH = fontSize + pY * 2;
-    const bX = (canvas.width - bW) / 2, bY = canvas.height - bH - 60;
+    const bX = (canvas.width - bW) / 2, bY = canvas.height - bH - (fontSize);
 
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.beginPath();
-    ctx.roundRect?.(bX, bY, bW, bH, bH / 2);
+    if (ctx.roundRect) {
+      ctx.roundRect(bX, bY, bW, bH, bH / 2);
+    } else {
+      ctx.rect(bX, bY, bW, bH);
+    }
     ctx.fill();
 
     ctx.fillStyle = '#FFFFFF';
@@ -246,9 +268,8 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
           <div className="text-7xl mb-8 animate-bounce">✨</div>
           <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tighter">요래됐슴당</h1>
-          <p className="text-gray-500 text-sm mb-16 font-medium">청소 전과 후를 완벽하게 비교하세요.<br/>어떻게 <span className="text-[#76D7C4] font-bold">변했는지</span> 지금 확인해볼까요?</p>
+          <p className="text-gray-500 text-sm mb-16 font-medium">청소 전과 후를 완벽하게 비교하세요.<br/>어떻게 변했는지 지금 확인해볼까요?</p>
           <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl active:scale-95 transition-all">새 청소 시작</button>
-          <button onClick={() => setStep(AppStep.CHAT)} className="mt-6 text-gray-400 text-sm font-bold border-b border-gray-200 pb-1">청소 팁 알아보기</button>
         </div>
       )}
 
