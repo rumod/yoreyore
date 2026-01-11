@@ -18,8 +18,14 @@
     #root { min-height: 100vh; display: flex; flex-direction: column; }
     .safe-top { padding-top: env(safe-area-inset-top); }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    @keyframes pulse-soft {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+    .animate-pulse-soft { animation: pulse-soft 2s infinite; }
   </style>
   <script>
+    // 전역 환경 변수 선언 (Gemini API용)
     window.process = { env: { API_KEY: "" } };
   </script>
 <script type="importmap">

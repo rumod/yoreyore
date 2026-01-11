@@ -1,3 +1,4 @@
+
 export const resizeImage = (base64Str: string, maxWidth: number = 1280): Promise<string> => {
   return new Promise((resolve) => {
     const img = new Image();
@@ -42,10 +43,12 @@ export const mergeImages = async (
     if (!ctx) return '';
 
     const isBeforeLandscape = imgBefore.width > imgBefore.height;
+    const isAfterLandscape = imgAfter.width > imgAfter.height;
 
-    if (isBeforeLandscape) {
-      // 1. 가로형 -> 상하(Vertical) 배치
-      const targetWidth = 1080;
+    // --- 레이아웃 결정 로직 ---
+    if (isBeforeLandscape && isAfterLandscape) {
+      // 1. 둘 다 가로 사진 -> 상하(Vertical) 배치
+      const targetWidth = Math.max(imgBefore.width, imgAfter.width);
       const scaledBeforeHeight = imgBefore.height * (targetWidth / imgBefore.width);
       const scaledAfterHeight = imgAfter.height * (targetWidth / imgAfter.width);
 
@@ -56,9 +59,10 @@ export const mergeImages = async (
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(imgBefore, 0, 0, targetWidth, scaledBeforeHeight);
       ctx.drawImage(imgAfter, 0, scaledBeforeHeight, targetWidth, scaledAfterHeight);
-    } else {
-      // 2. 세로형 -> 좌우(Side-by-Side) 배치
-      const targetHeight = 1080;
+
+    } else if (!isBeforeLandscape && !isAfterLandscape) {
+      // 2. 둘 다 세로 사진 -> 좌우(Side-by-Side) 배치
+      const targetHeight = Math.max(imgBefore.height, imgAfter.height);
       const scaledBeforeWidth = imgBefore.width * (targetHeight / imgBefore.height);
       const scaledAfterWidth = imgAfter.width * (targetHeight / imgAfter.height);
 
@@ -69,13 +73,34 @@ export const mergeImages = async (
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(imgBefore, 0, 0, scaledBeforeWidth, targetHeight);
       ctx.drawImage(imgAfter, scaledBeforeWidth, 0, scaledAfterWidth, targetHeight);
+
+    } else {
+      // 3. 혼합 방향 -> 정사각 크롭 후 좌우 배치
+      const squareSize = 1080; 
+      canvas.width = squareSize * 2;
+      canvas.height = squareSize;
+
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const drawCenteredSquare = (img: HTMLImageElement, dx: number) => {
+        const size = Math.min(img.width, img.height);
+        const sx = (img.width - size) / 2;
+        const sy = (img.height - size) / 2;
+        ctx.drawImage(img, sx, sy, size, size, dx, 0, squareSize, squareSize);
+      };
+
+      drawCenteredSquare(imgBefore, 0);
+      drawCenteredSquare(imgAfter, squareSize);
     }
 
     // --- 정보 바 (오버레이) ---
-    const fontSize = Math.round(Math.max(canvas.width, canvas.height) * 0.035);
+    // 전체 이미지 크기에 비례하여 폰트 크기 조절
+    const fontSize = Math.round(canvas.height * 0.04);
     const now = new Date();
     const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\./g, '/').replace(/ /g, '');
-    const footerText = `${dateStr} | ${durationMinutes}분 소요 | 요래됐슴당 ✨`;
+    const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' });
+    const footerText = `${dateStr} ${timeStr} | ${durationMinutes}분 소요 | 요래됐슴당 ✨`;
 
     ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     const textMetrics = ctx.measureText(footerText);
@@ -91,6 +116,7 @@ export const mergeImages = async (
     const boxX = (canvas.width - boxWidth) / 2;
     const boxY = canvas.height - boxHeight - margin;
 
+    // 둥근 캡슐 바 그리기
     if (ctx.roundRect) {
       ctx.beginPath();
       ctx.roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);

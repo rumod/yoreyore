@@ -52,75 +52,47 @@ const resizeImage = (base64Str: string, maxWidth: number = 1080): Promise<string
   });
 };
 
-const loadImage = (src: string): Promise<HTMLImageElement> => {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = () => resolve(img);
-    img.onerror = (e) => reject(e);
-    img.src = src;
-  });
-};
-
 const mergeImages = async (before: string, after: string, duration: number): Promise<string> => {
+  const load = (src: string): Promise<HTMLImageElement> => new Promise((res, rej) => {
+    const i = new Image(); i.crossOrigin = "anonymous"; i.onload = () => res(i); i.onerror = rej; i.src = src;
+  });
+
   try {
-    const [imgB, imgA] = await Promise.all([loadImage(before), loadImage(after)]);
+    const [imgB, imgA] = await Promise.all([load(before), load(after)]);
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
     if (!ctx) return '';
 
-    const isBeforeLandscape = imgB.width > imgB.height;
-    const targetDim = 1080;
+    // 레이아웃: 세로 배치
+    const targetW = 1080;
+    const scaleB = targetW / imgB.width;
+    const scaleA = targetW / imgA.width;
+    const hB = imgB.height * scaleB;
+    const hA = imgA.height * scaleA;
 
-    if (isBeforeLandscape) {
-      // 1. 가로형 사진: 상하(Vertical) 배치
-      const scaleB = targetDim / imgB.width;
-      const scaleA = targetDim / imgA.width;
-      const hB = imgB.height * scaleB;
-      const hA = imgA.height * scaleA;
+    canvas.width = targetW;
+    canvas.height = hB + hA;
 
-      canvas.width = targetDim;
-      canvas.height = hB + hA;
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(imgB, 0, 0, targetDim, hB);
-      ctx.drawImage(imgA, 0, hB, targetDim, hA);
-    } else {
-      // 2. 세로형 사진: 좌우(Horizontal) 배치
-      const scaleB = targetDim / imgB.height;
-      const scaleA = targetDim / imgA.height;
-      const wB = imgB.width * scaleB;
-      const wA = imgA.width * scaleA;
-
-      canvas.width = wB + wA;
-      canvas.height = targetDim;
-
-      ctx.fillStyle = '#FFFFFF';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(imgB, 0, 0, wB, targetDim);
-      ctx.drawImage(imgA, wB, 0, wA, targetDim);
-    }
+    ctx.fillStyle = '#FFFFFF';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(imgB, 0, 0, targetW, hB);
+    ctx.drawImage(imgA, 0, hB, targetW, hA);
 
     // 하단 정보 캡슐
-    const fontSize = Math.round(Math.max(canvas.width, canvas.height) * 0.035);
+    const fontSize = 42;
     const now = new Date();
     const dateStr = now.toLocaleDateString('ko-KR').replace(/ /g, '');
     const footerText = `${dateStr} | ${duration}분 소요 | 요래됐슴당 ✨`;
     
     ctx.font = `bold ${fontSize}px sans-serif`;
     const textW = ctx.measureText(footerText).width;
-    const pX = fontSize * 1.5, pY = fontSize * 0.8;
+    const pX = 60, pY = 30;
     const bW = textW + pX * 2, bH = fontSize + pY * 2;
-    const bX = (canvas.width - bW) / 2, bY = canvas.height - bH - fontSize;
+    const bX = (canvas.width - bW) / 2, bY = canvas.height - bH - 60;
 
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.beginPath();
-    if (ctx.roundRect) {
-      ctx.roundRect(bX, bY, bW, bH, bH / 2);
-    } else {
-      ctx.rect(bX, bY, bW, bH);
-    }
+    ctx.roundRect?.(bX, bY, bW, bH, bH / 2);
     ctx.fill();
 
     ctx.fillStyle = '#FFFFFF';
@@ -138,7 +110,7 @@ const askGemini = async (history: ChatMessage[]): Promise<string> => {
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: history.map(m => ({ role: m.role === 'model' ? 'model' : 'user', parts: [{ text: m.text }] })),
+      contents: history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
       config: { systemInstruction: "당신은 청소 전문가 '요래됐슴당' 가이드입니다. 짧고 명쾌하게 한국어로 조언하세요." }
     });
     return response.text || "답변을 드릴 수 없네요.";
@@ -158,12 +130,9 @@ const CameraView: React.FC<{
   const [ghostActive, setGhostActive] = useState(true);
 
   useEffect(() => {
-    navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
-    }).then(s => { 
-      setStream(s); 
-      if (videoRef.current) videoRef.current.srcObject = s; 
-    }).catch(() => alert("카메라 권한이 필요합니다."));
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+      .then(s => { setStream(s); if (videoRef.current) videoRef.current.srcObject = s; })
+      .catch(() => alert("카메라 권한이 필요합니다."));
     return () => stream?.getTracks().forEach(t => t.stop());
   }, []);
 
@@ -248,24 +217,15 @@ const App: React.FC = () => {
   const [session, setSession] = useState<SessionData>({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null });
 
   useEffect(() => {
-    const saved = localStorage.getItem('yorae_session_v3');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setSession(parsed);
-        if (parsed.mergedImage) setStep(AppStep.RESULT);
-        else if (parsed.beforeImage) setStep(AppStep.CLEANING);
-      } catch (e) { console.error(e); }
-    }
+    const saved = localStorage.getItem('yorae_v2');
+    if (saved) setSession(JSON.parse(saved));
   }, []);
 
-  useEffect(() => { 
-    if (session.beforeImage) localStorage.setItem('yorae_session_v3', JSON.stringify(session)); 
-  }, [session]);
+  useEffect(() => { localStorage.setItem('yorae_v2', JSON.stringify(session)); }, [session]);
 
   const startCleaning = async (img: string) => {
     const res = await resizeImage(img);
-    setSession({ ...session, beforeImage: res, startTime: Date.now(), afterImage: null, mergedImage: null });
+    setSession({ ...session, beforeImage: res, startTime: Date.now() });
     setStep(AppStep.CLEANING);
   };
 
@@ -278,11 +238,7 @@ const App: React.FC = () => {
     setStep(AppStep.RESULT);
   };
 
-  const reset = () => { 
-    localStorage.removeItem('yorae_session_v3');
-    setSession({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null }); 
-    setStep(AppStep.HOME); 
-  };
+  const reset = () => { setSession({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null }); setStep(AppStep.HOME); };
 
   return (
     <div className="max-w-md mx-auto w-full flex-1 flex flex-col bg-white shadow-xl relative overflow-hidden min-h-screen">
@@ -290,16 +246,8 @@ const App: React.FC = () => {
         <div className="flex-1 flex flex-col items-center justify-center p-10 text-center">
           <div className="text-7xl mb-8 animate-bounce">✨</div>
           <h1 className="text-4xl font-black text-gray-900 mb-2 tracking-tighter">요래됐슴당</h1>
-          <p className="text-gray-500 text-sm mb-16 font-medium leading-relaxed px-4">
-            청소 전과 후를 완벽하게 비교하세요.<br/>어떻게 변했는지 지금 확인해볼까요?
-          </p>
-          <button 
-            onClick={() => setStep(AppStep.BEFORE_CAPTURE)} 
-            style={{ backgroundColor: MINT_COLOR }} 
-            className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl active:scale-95 transition-all"
-          >
-            새 청소 시작
-          </button>
+          <p className="text-gray-500 text-sm mb-16 font-medium">청소 전과 후를 완벽하게 비교하세요.<br/>어떻게 변했는지 지금 확인해볼까요?</p>
+          <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl active:scale-95 transition-all">새 청소 시작</button>
         </div>
       )}
 
@@ -313,19 +261,13 @@ const App: React.FC = () => {
       )}
 
       {step === AppStep.CLEANING && (
-        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-white">
-          <div className="w-full aspect-square rounded-[3rem] overflow-hidden shadow-2xl mb-10 border-4 border-gray-100 relative">
-            <img src={session.beforeImage!} className="w-full h-full object-cover grayscale-[0.3] opacity-60" />
+        <div className="flex-1 flex flex-col items-center justify-center p-8 bg-[#F8F9FA]">
+          <div className="w-full aspect-square rounded-[3rem] overflow-hidden shadow-2xl mb-10 border-4 border-white relative">
+            <img src={session.beforeImage!} className="w-full h-full object-cover grayscale-[0.5] opacity-60" />
             <div className="absolute inset-0 flex items-center justify-center text-white font-black text-2xl drop-shadow-lg">이랬는데...</div>
           </div>
           <h2 className="text-2xl font-black mb-10 text-gray-800">깨끗하게 변신 중!</h2>
-          <button 
-            onClick={() => setStep(AppStep.AFTER_CAPTURE)} 
-            style={{ backgroundColor: MINT_COLOR }} 
-            className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl active:scale-95 transition-all"
-          >
-            청소 끝! 요래됐슴당
-          </button>
+          <button onClick={() => setStep(AppStep.AFTER_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl active:scale-95 transition-all">청소 끝! 요래됐슴당</button>
           <button onClick={reset} className="mt-8 text-gray-300 text-xs font-bold">기록 취소</button>
         </div>
       )}
@@ -336,22 +278,14 @@ const App: React.FC = () => {
             <h3 className="text-gray-400 font-bold mb-1">이랬는데...</h3>
             <h2 className="text-4xl font-black tracking-tighter" style={{ color: MINT_COLOR }}>요래됐슴당!</h2>
           </div>
-          <div className="rounded-[2rem] overflow-hidden shadow-2xl border-2 border-gray-50 mb-10">
-            <img src={session.mergedImage!} className="w-full h-auto block" />
+          <div className="rounded-[2.5rem] overflow-hidden shadow-2xl border-2 border-gray-100 mb-10">
+            <img src={session.mergedImage!} className="w-full" />
           </div>
-          <div className="space-y-4 pb-12">
-            <button 
-              onClick={() => {
-                const link = document.createElement('a');
-                link.href = session.mergedImage!; 
-                link.download = `yoreyore_${Date.now()}.jpg`; 
-                link.click();
-              }} 
-              style={{ backgroundColor: MINT_COLOR }} 
-              className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl"
-            >
-              이미지 저장하기
-            </button>
+          <div className="space-y-4 mb-10">
+            <button onClick={() => {
+              const link = document.createElement('a');
+              link.href = session.mergedImage!; link.download = 'yoreyore_result.jpg'; link.click();
+            }} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-xl font-black text-white shadow-xl">이미지 저장하기</button>
             <button onClick={reset} className="w-full py-5 rounded-3xl font-black text-gray-400 border-2 border-gray-100">처음으로</button>
           </div>
         </div>
