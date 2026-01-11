@@ -67,7 +67,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const targetDim = 1080;
 
     if (isBeforeLandscape) {
-      // 요구사항: 가로로 촬영된 사진이라면 세로로 나열
+      // 1. 가로로 촬영된 사진: 상하(Vertical) 나열
       const scaleB = targetDim / imgB.width;
       const scaleA = targetDim / imgA.width;
       const hB = imgB.height * scaleB;
@@ -81,7 +81,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
       ctx.drawImage(imgB, 0, 0, targetDim, hB);
       ctx.drawImage(imgA, 0, hB, targetDim, hA);
     } else {
-      // 세로로 촬영된 사진이라면 좌우로 나열
+      // 2. 세로로 촬영된 사진: 좌우(Horizontal) 나열
       const scaleB = targetDim / imgB.height;
       const scaleA = targetDim / imgA.height;
       const wB = imgB.width * scaleB;
@@ -110,6 +110,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
 
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.beginPath();
+    // roundRect 폴리필 체크
     if (ctx.roundRect) {
       ctx.roundRect(bX, bY, bW, bH, bH / 2);
     } else {
@@ -123,7 +124,10 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     ctx.fillText(footerText, bX + bW / 2, bY + bH / 2 + 2);
 
     return canvas.toDataURL('image/jpeg', 0.9);
-  } catch { return ''; }
+  } catch (error) {
+    console.error("Merge error:", error);
+    return ''; 
+  }
 };
 
 // --- Components ---
