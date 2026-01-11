@@ -80,7 +80,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     } else if (!isBeforeLandscape && !isAfterLandscape) {
       const targetHeight = Math.max(imgBefore.height, imgAfter.height);
       const sbW = imgBefore.width * (targetHeight / imgBefore.height);
-      const saW = imgAfter.width * (targetHeight / imgAfter.height);
+      const saW = imgAfter.width * (targetHeight / imgAfter.width);
       canvas.width = sbW + saW;
       canvas.height = targetHeight;
       ctx.fillStyle = '#FFFFFF';
@@ -119,9 +119,11 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const boxY = canvas.height - boxHeight - fontSize;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    if (ctx.roundRect) {
+    // Fix: Use casting to any for the 'roundRect' in check to prevent TypeScript from narrowing ctx to 'never' in the else block.
+    // This happens if the environment's type definitions for CanvasRenderingContext2D already include roundRect as a mandatory property.
+    if ('roundRect' in (ctx as any)) {
       ctx.beginPath();
-      ctx.roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
+      (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
       ctx.fill();
     } else {
       ctx.fillRect(boxX, boxY, boxWidth, boxHeight);
