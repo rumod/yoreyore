@@ -1,8 +1,0 @@
-{
-  "name": "요래됐슴당",
-  "description": "청소 전/후 사진을 완벽하게 비교하고 소요 시간까지 기록하는 청소 인증 앱",
-  "requestFramePermissions": [
-    "camera",
-    "microphone"
-  ]
-}
