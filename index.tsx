@@ -119,7 +119,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const boxY = canvas.height - boxHeight - fontSize;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    // Use simple fillRect if roundRect is not supported
+    // Safety check for roundRect
     if (typeof (ctx as any).roundRect === 'function') {
       ctx.beginPath();
       (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
@@ -135,7 +135,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
 
     return canvas.toDataURL('image/jpeg', 0.9);
   } catch (e) { 
-    console.error("Merge failed", e);
+    console.error("Image merging failed:", e);
     return ''; 
   }
 };
@@ -171,9 +171,12 @@ const CameraView: React.FC<{
           currentStream = s;
           if (videoRef.current) videoRef.current.srcObject = s;
         })
-        .catch(() => setError("카메라 권한을 허용해주세요."));
+        .catch((err) => {
+          console.error("Camera error:", err);
+          setError("카메라 권한을 허용해주세요. (HTTPS 환경인지 확인)");
+        });
     } else {
-      setError("브라우저가 카메라를 지원하지 않습니다.");
+      setError("이 브라우저에서는 카메라를 지원하지 않습니다.");
     }
     return () => currentStream?.getTracks().forEach(t => t.stop());
   }, []);
@@ -206,8 +209,8 @@ const CameraView: React.FC<{
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
         {error ? (
           <div className="text-white text-center font-bold px-10">
-            <p className="mb-4">{error}</p>
-            <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black rounded-full text-sm">다시 시도</button>
+            <p className="mb-4 text-sm opacity-80">{error}</p>
+            <button onClick={() => window.location.reload()} className="px-6 py-2 bg-white text-black rounded-full text-xs font-black">새로고침</button>
           </div>
         ) : (
           <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
@@ -218,7 +221,7 @@ const CameraView: React.FC<{
       </div>
       <div className="h-44 flex justify-between items-center px-10 bg-black safe-bottom border-t border-white/10">
         {mode === 'after' ? (
-          <button onClick={() => setIsGhost(!isGhost)} className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-colors ${isGhost ? 'bg-white/20 border-white/50 text-white' : 'text-white/40 border-white/10'}`}>
+          <button onClick={() => setIsGhost(!isGhost)} className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center transition-all ${isGhost ? 'bg-white/20 border-white/50 text-white' : 'text-white/40 border-white/10'}`}>
             <span className="text-[10px] font-black uppercase tracking-tighter">가이드</span>
             <span className="text-[8px]">{isGhost ? 'ON' : 'OFF'}</span>
           </button>
@@ -228,7 +231,7 @@ const CameraView: React.FC<{
         </button>
         <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex flex-col items-center justify-center text-white active:bg-white/20">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-          <span className="text-[10px] mt-1 font-bold">파일</span>
+          <span className="text-[10px] mt-1 font-bold">앨범</span>
           <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={async (e) => {
             const f = e.target.files?.[0];
             if (f) {
@@ -272,12 +275,12 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
         {mergedImage ? (
           <img src={mergedImage} className="w-full h-full object-contain" alt="Result" />
         ) : (
-          <div className="text-gray-300 font-bold">이미지 생성 중...</div>
+          <div className="text-gray-300 font-bold">이미지를 합치는 중...</div>
         )}
       </div>
       <div className="space-y-4 pb-12 safe-bottom">
-        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">이미지 저장 및 공유</button>
-        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-900 active:bg-gray-50 transition-all">처음으로 돌아가기</button>
+        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">저장 및 공유하기</button>
+        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-900 active:bg-gray-50 transition-all">처음으로</button>
       </div>
     </div>
   );
@@ -298,6 +301,7 @@ const App: React.FC = () => {
         if (parsed.mergedImage) setStep(AppStep.RESULT);
         else if (parsed.beforeImage) setStep(AppStep.CLEANING);
       } catch (e) { 
+        console.error("Session restore failed", e);
         localStorage.removeItem('yorae_session'); 
       }
     }
@@ -331,16 +335,12 @@ const App: React.FC = () => {
     setStep(AppStep.RESULT);
   };
 
-  const reset = () => {
-    if (confirm("진행 중인 기록이 삭제됩니다. 처음으로 돌아갈까요?")) {
-      hardReset();
-    }
-  };
-
   const hardReset = () => {
-    localStorage.removeItem('yorae_session');
-    setSession({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null });
-    setStep(AppStep.HOME);
+    if (confirm("모든 기록을 삭제하고 초기화할까요?")) {
+      localStorage.removeItem('yorae_session');
+      setSession({ beforeImage: null, afterImage: null, startTime: null, endTime: null, mergedImage: null });
+      setStep(AppStep.HOME);
+    }
   };
 
   return (
@@ -361,7 +361,7 @@ const App: React.FC = () => {
             >
               기록 시작하기
             </button>
-            {session.beforeImage && (
+            {session.beforeImage && !session.mergedImage && (
                <button 
                onClick={() => setStep(AppStep.CLEANING)} 
                className="w-full py-4 rounded-[2.5rem] border-2 border-gray-200 text-gray-900 text-lg font-black active:bg-gray-100 transition-all"
@@ -369,7 +369,7 @@ const App: React.FC = () => {
                기존 기록 이어하기
              </button>
             )}
-            <button onClick={hardReset} className="text-gray-400 text-xs font-bold pt-4">기록 초기화</button>
+            <button onClick={hardReset} className="text-gray-300 text-[10px] font-bold pt-4 underline">데이터 초기화</button>
           </div>
         </div>
       )}
@@ -403,7 +403,7 @@ const App: React.FC = () => {
               청소 끝! 촬영하기
             </button>
             <button 
-              onClick={reset} 
+              onClick={hardReset} 
               className="w-full py-4 text-gray-900 text-sm font-black border-b border-gray-100 active:text-gray-400"
             >
               기록 중단하기
@@ -412,12 +412,12 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {step === AppStep.RESULT && <ResultView mergedImage={session.mergedImage} onReset={hardReset} />}
+      {step === AppStep.RESULT && <ResultView mergedImage={session.mergedImage} onReset={() => setStep(AppStep.HOME)} />}
     </div>
   );
 };
 
-// --- Entry Point with Error Catching ---
+// --- Entry Point with Global Error Handler ---
 try {
   const container = document.getElementById('root');
   if (container) {
@@ -427,5 +427,13 @@ try {
 } catch (e) {
   console.error("Critical Render Error", e);
   const rootEl = document.getElementById('root');
-  if (rootEl) rootEl.innerHTML = `<div style="padding: 40px; text-align: center; font-weight: bold; color: red;">앱 실행 중 오류가 발생했습니다. 브라우저를 새로고침 해주세요.</div>`;
+  if (rootEl) {
+    rootEl.innerHTML = `
+      <div style="padding: 40px; text-align: center; display: flex; flex-direction: column; height: 100vh; justify-content: center; align-items: center; background: white;">
+        <h2 style="font-weight: 900; font-size: 24px; color: #111827; margin-bottom: 20px;">앱 실행 중 오류 발생</h2>
+        <p style="color: #6B7280; font-size: 14px; margin-bottom: 30px;">저장된 데이터 충돌이 의심됩니다.</p>
+        <button onclick="localStorage.clear(); location.reload();" style="background: #76D7C4; color: white; border: none; padding: 16px 32px; border-radius: 20px; font-weight: 900; cursor: pointer;">초기화 후 새로고침</button>
+      </div>
+    `;
+  }
 }
