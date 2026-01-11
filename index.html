@@ -4,11 +4,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>요래됐슴당 - 청소 비교 앱</title>
+  <title>요래됐슴당 - 청소 전후 사진 생성</title>
+  
+  <!-- 라이브러리 로드 -->
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  
   <link rel="manifest" href="./manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  
   <style>
     body {
       background-color: #F5F5F5;
@@ -16,30 +21,59 @@
       overflow-x: hidden;
       -webkit-tap-highlight-color: transparent;
     }
-    .safe-bottom {
-      padding-bottom: env(safe-area-inset-bottom);
-    }
-    .safe-top {
-      padding-top: env(safe-area-inset-top);
-    }
-    #root {
-      min-height: 100vh;
+    #root { min-height: 100vh; }
+    #error-display {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 1rem;
+      z-index: 9999;
+      font-size: 12px;
+      border-bottom: 2px solid #ef4444;
+      white-space: pre-wrap;
     }
   </style>
-<script type="importmap">
-{
-  "imports": {
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
+
+  <script>
+    // 1. process.env 에러 방지 (Gemini SDK 등에서 사용)
+    window.process = { 
+      env: { 
+        API_KEY: "" // 환경 변수가 없을 경우 빈 값으로 설정
+      } 
+    };
+
+    // 2. 전역 에러 캡처 (하얀 화면 방지용 디버깅)
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      const display = document.getElementById('error-display');
+      if (display) {
+        display.style.display = 'block';
+        display.textContent = `Error: ${msg}\nLine: ${lineNo}\nFile: ${url}`;
+      }
+      return false;
+    };
+  </script>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+      "react/": "https://esm.sh/react@^19.2.3/",
+      "react": "https://esm.sh/react@^19.2.3",
+      "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
+    }
   }
-}
-</script>
+  </script>
 </head>
 <body>
+  <div id="error-display"></div>
   <div id="root"></div>
-  <!-- index.tsx를 불러오는 모듈 스크립트를 반드시 추가해야 합니다 -->
-  <script type="module" src="./index.tsx"></script>
+  
+  <!-- 
+    GitHub Pages에서 직접 실행하기 위해 data-type="module"과 data-presets을 사용합니다.
+    참고: 실제 운영 환경에서는 Vite 등을 통한 빌드(npm run build) 후 생성된 .js 파일을 올리는 것이 정석입니다.
+  -->
+  <script type="text/babel" data-type="module" data-presets="typescript,react" src="./index.tsx"></script>
 </body>
 </html>
