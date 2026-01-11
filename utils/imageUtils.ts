@@ -47,7 +47,7 @@ export const mergeImages = async (
 
     // --- 레이아웃 결정 로직 ---
     if (isBeforeLandscape && isAfterLandscape) {
-      // 1. 둘 다 가로 사진 -> 상하 배치 (너비 맞춤)
+      // 1. 둘 다 가로 사진 -> 상하(Vertical) 배치
       const targetWidth = Math.max(imgBefore.width, imgAfter.width);
       const scaledBeforeHeight = imgBefore.height * (targetWidth / imgBefore.width);
       const scaledAfterHeight = imgAfter.height * (targetWidth / imgAfter.width);
@@ -61,7 +61,7 @@ export const mergeImages = async (
       ctx.drawImage(imgAfter, 0, scaledBeforeHeight, targetWidth, scaledAfterHeight);
 
     } else if (!isBeforeLandscape && !isAfterLandscape) {
-      // 2. 둘 다 세로 사진 -> 좌우 배치 (높이 맞춤)
+      // 2. 둘 다 세로 사진 -> 좌우(Side-by-Side) 배치
       const targetHeight = Math.max(imgBefore.height, imgAfter.height);
       const scaledBeforeWidth = imgBefore.width * (targetHeight / imgBefore.height);
       const scaledAfterWidth = imgAfter.width * (targetHeight / imgAfter.height);
@@ -75,8 +75,8 @@ export const mergeImages = async (
       ctx.drawImage(imgAfter, scaledBeforeWidth, 0, scaledAfterWidth, targetHeight);
 
     } else {
-      // 3. 혼합 (가로+세로) -> 정사각 크롭 후 좌우 배치
-      const squareSize = 1080; // 고정 해상도로 정규화
+      // 3. 혼합 방향 -> 정사각 크롭 후 좌우 배치
+      const squareSize = 1080; 
       canvas.width = squareSize * 2;
       canvas.height = squareSize;
 
@@ -95,14 +95,14 @@ export const mergeImages = async (
     }
 
     // --- 정보 바 (오버레이) ---
-    // 전체 이미지 크기에 비례하여 폰트 크기 조절 (세로 높이 기준)
+    // 전체 이미지 크기에 비례하여 폰트 크기 조절
     const fontSize = Math.round(canvas.height * 0.04);
     const now = new Date();
     const dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\./g, '/').replace(/ /g, '');
     const timeStr = now.toLocaleTimeString('ko-KR', { hour12: false, hour: '2-digit', minute: '2-digit' });
     const footerText = `${dateStr} ${timeStr} | ${durationMinutes}분 소요 | 요래됐슴당 ✨`;
 
-    ctx.font = `bold ${fontSize}px -apple-system, sans-serif`;
+    ctx.font = `bold ${fontSize}px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`;
     const textMetrics = ctx.measureText(footerText);
     const textWidth = textMetrics.width;
     
@@ -116,6 +116,7 @@ export const mergeImages = async (
     const boxX = (canvas.width - boxWidth) / 2;
     const boxY = canvas.height - boxHeight - margin;
 
+    // 둥근 캡슐 바 그리기
     if (ctx.roundRect) {
       ctx.beginPath();
       ctx.roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);

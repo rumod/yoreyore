@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>요래됐슴당 - 청소 비교 앱</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="manifest" href="manifest.json">
+  <link rel="manifest" href="./manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
@@ -22,6 +22,9 @@
     .safe-top {
       padding-top: env(safe-area-inset-top);
     }
+    #root {
+      min-height: 100vh;
+    }
   </style>
 <script type="importmap">
 {
@@ -36,5 +39,7 @@
 </head>
 <body>
   <div id="root"></div>
+  <!-- index.tsx를 불러오는 모듈 스크립트를 반드시 추가해야 합니다 -->
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
