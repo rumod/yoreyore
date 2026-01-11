@@ -119,7 +119,7 @@ const mergeImages = async (before: string, after: string, durationMinutes: numbe
     const boxY = canvas.height - boxHeight - fontSize;
 
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-    // Safety check for roundRect
+    // Safety check and explicit type casting for roundRect support
     if (typeof (ctx as any).roundRect === 'function') {
       ctx.beginPath();
       (ctx as any).roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
