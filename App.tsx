@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { AppStep, SessionData } from './types';
 import CameraView from './components/CameraView';
@@ -136,13 +137,21 @@ const App: React.FC = () => {
             청소 전과 후를 완벽하게 비교하고 기록하세요.<br/>
             어떻게 변했는지 지금 바로 시작해볼까요?
           </p>
-          <button 
-            onClick={() => setStep(AppStep.BEFORE_CAPTURE)}
-            style={{ backgroundColor: MINT_COLOR }}
-            className="w-full text-white py-5 rounded-2xl text-xl font-black shadow-xl shadow-teal-100 active:scale-[0.98] transition-all"
-          >
-            새 청소 시작하기
-          </button>
+          <div className="w-full space-y-3">
+            <button 
+              onClick={() => setStep(AppStep.BEFORE_CAPTURE)}
+              style={{ backgroundColor: MINT_COLOR }}
+              className="w-full text-white py-5 rounded-2xl text-xl font-black shadow-xl shadow-teal-100 active:scale-[0.98] transition-all"
+            >
+              새 청소 시작하기
+            </button>
+            <button 
+              onClick={() => setStep(AppStep.CHAT)}
+              className="w-full py-4 text-gray-400 text-sm font-black border-2 border-gray-100 rounded-2xl hover:bg-gray-50 active:scale-[0.98] transition-all"
+            >
+              ✨ 청소 요정 요래에게 물어보기
+            </button>
+          </div>
         </div>
       )}
 

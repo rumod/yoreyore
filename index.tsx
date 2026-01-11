@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { GoogleGenAI } from "@google/genai";
 
 // --- Constants & Types ---
 const MINT_COLOR = '#76D7C4';
@@ -10,8 +9,7 @@ enum AppStep {
   BEFORE_CAPTURE = 'BEFORE_CAPTURE',
   CLEANING = 'CLEANING',
   AFTER_CAPTURE = 'AFTER_CAPTURE',
-  RESULT = 'RESULT',
-  CHAT = 'CHAT'
+  RESULT = 'RESULT'
 }
 
 interface SessionData {
@@ -20,11 +18,6 @@ interface SessionData {
   startTime: number | null;
   endTime: number | null;
   mergedImage: string | null;
-}
-
-interface ChatMessage {
-  role: 'user' | 'model';
-  text: string;
 }
 
 // --- Utilities ---
@@ -151,20 +144,7 @@ const fileToBase64 = (file: File): Promise<string> => {
   });
 };
 
-// --- Service ---
-const getCleaningTips = async (history: ChatMessage[]): Promise<string> => {
-  try {
-    const ai = new GoogleGenAI({ apiKey: (window as any).process.env?.API_KEY || '' });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: history.map(m => ({ role: m.role, parts: [{ text: m.text }] })),
-      config: { systemInstruction: "당신은 청소 전문가 '요래됐슴당' 가이드입니다. 한국어로 답변하세요." }
-    });
-    return response.text || "답변을 생성할 수 없습니다.";
-  } catch (e) { return "오류가 발생했습니다."; }
-};
-
-// --- Internal Components ---
+// --- Components ---
 const CameraView: React.FC<{
   mode: 'before' | 'after', 
   onCapture: (img: string) => void, 
@@ -185,7 +165,7 @@ const CameraView: React.FC<{
         currentStream = s;
         if (videoRef.current) videoRef.current.srcObject = s;
       })
-      .catch(() => setError("카메라 권한이 필요합니다."));
+      .catch(() => setError("카메라 권한을 확인해주세요."));
     return () => currentStream?.getTracks().forEach(t => t.stop());
   }, []);
 
@@ -212,18 +192,18 @@ const CameraView: React.FC<{
         <div className="w-12"></div>
       </div>
       <div className="flex-1 relative flex items-center justify-center">
-        {error ? <div className="text-white text-center font-bold">{error}</div> : <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
+        {error ? <div className="text-white text-center font-bold px-10">{error}</div> : <video ref={videoRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
         {mode === 'after' && beforeThumbnail && isGhost && <img src={beforeThumbnail} className="absolute inset-0 w-full h-full object-cover opacity-40 mix-blend-screen pointer-events-none" />}
       </div>
       <div className="h-44 flex justify-between items-center px-10 bg-black safe-bottom border-t border-white/10">
         {mode === 'after' ? (
           <button onClick={() => setIsGhost(!isGhost)} className={`w-16 h-16 rounded-2xl border-2 flex flex-col items-center justify-center ${isGhost ? 'bg-white/20 border-white/50 text-white' : 'text-white/40 border-white/10'}`}>
-            <span className="text-[10px] font-black uppercase">GHOST</span>
+            <span className="text-[10px] font-black uppercase tracking-tighter">가이드</span>
             <span className="text-[8px]">{isGhost ? 'ON' : 'OFF'}</span>
           </button>
         ) : <div className="w-16" />}
         <button onClick={capture} className="w-24 h-24 border-4 border-white/30 rounded-full flex items-center justify-center active:scale-90 transition-transform">
-          <div className="w-20 h-20 bg-white rounded-full shadow-lg"></div>
+          <div className="w-20 h-20 bg-white rounded-full"></div>
         </button>
         <button onClick={() => fileInputRef.current?.click()} className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex flex-col items-center justify-center text-white active:bg-white/20">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
@@ -248,7 +228,7 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
       const f = new File([b], 'yorae.jpg', { type: 'image/jpeg' });
       if (navigator.share) await navigator.share({ files: [f], title: '요래됐슴당', text: '이랬는데 요래됐슴당!' });
       else alert("이미지를 길게 눌러 저장하세요.");
-    } catch (e) { alert("공유를 지원하지 않는 환경입니다."); }
+    } catch (e) { alert("이미지를 길게 눌러 저장하세요."); }
   };
   return (
     <div className="flex-1 flex flex-col p-8 bg-white overflow-y-auto">
@@ -260,51 +240,8 @@ const ResultView: React.FC<{ mergedImage: string | null, onReset: () => void }> 
         <img src={mergedImage || ''} className="w-full" alt="Result" />
       </div>
       <div className="space-y-4 pb-12">
-        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-lg active:scale-95 transition-all">저장 및 공유하기</button>
-        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-500 active:bg-gray-50 transition-all">새로 시작하기</button>
-      </div>
-    </div>
-  );
-};
-
-const ChatBot: React.FC<{ onBack: () => void }> = ({ onBack }) => {
-  const [messages, setMessages] = useState<ChatMessage[]>([{ role: 'model', text: '무엇을 도와드릴까요? 청소 전문가가 답변해 드립니다!' }]);
-  const [input, setInput] = useState('');
-  const [loading, setLoading] = useState(false);
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => { scrollRef.current?.scrollTo(0, scrollRef.current.scrollHeight); }, [messages]);
-
-  const send = async () => {
-    if (!input.trim() || loading) return;
-    const userMsg: ChatMessage = { role: 'user', text: input };
-    setMessages(prev => [...prev, userMsg]);
-    setInput('');
-    setLoading(true);
-    const tip = await getCleaningTips([...messages, userMsg]);
-    setMessages(prev => [...prev, { role: 'model', text: tip }]);
-    setLoading(false);
-  };
-
-  return (
-    <div className="flex-1 flex flex-col bg-white overflow-hidden">
-      <div className="p-4 border-b flex items-center gap-4 bg-white sticky top-0 safe-top z-10">
-        <button onClick={onBack} className="p-2 text-gray-400"><svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 19l-7-7 7-7" /></svg></button>
-        <h2 className="font-black text-lg text-gray-900">청소 가이드</h2>
-      </div>
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-6 space-y-4">
-        {messages.map((m, i) => (
-          <div key={i} className={`flex ${m.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] px-4 py-3 rounded-2xl text-sm font-medium shadow-sm ${m.role === 'user' ? 'bg-[#76D7C4] text-white rounded-tr-none' : 'bg-gray-100 text-gray-900 rounded-tl-none'}`}>{m.text}</div>
-          </div>
-        ))}
-        {loading && <div className="text-xs text-gray-400 animate-pulse font-bold">답변을 생각 중입니다...</div>}
-      </div>
-      <div className="p-4 border-t bg-white safe-bottom">
-        <div className="flex gap-2">
-          <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()} placeholder="질문을 입력하세요..." className="flex-1 border-2 border-gray-100 rounded-xl px-4 py-3 text-sm text-gray-900 focus:outline-none focus:border-[#76D7C4] transition-colors" />
-          <button onClick={send} style={{ backgroundColor: MINT_COLOR }} className="p-3 text-white rounded-xl shadow-md active:scale-95 transition-all"><svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" /></svg></button>
-        </div>
+        <button onClick={handleShare} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-lg active:scale-95 transition-all">이미지 저장 및 공유</button>
+        <button onClick={onReset} className="w-full py-5 rounded-2xl border-2 border-gray-200 font-black text-gray-500 active:bg-gray-50 transition-all">처음으로 돌아가기</button>
       </div>
     </div>
   );
@@ -329,7 +266,9 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (session.beforeImage) localStorage.setItem('yorae_session', JSON.stringify(session));
+    if (session.beforeImage || session.mergedImage) {
+      localStorage.setItem('yorae_session', JSON.stringify(session));
+    }
   }, [session]);
 
   useEffect(() => {
@@ -372,11 +311,10 @@ const App: React.FC = () => {
       {step === AppStep.HOME && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-[#FAFAFA]">
           <span className="text-7xl mb-8">✨</span>
-          <h1 className="text-3xl font-black mb-4 text-gray-900">요래됐슴당</h1>
-          <p className="text-gray-600 text-sm mb-16 leading-relaxed font-bold">청소 전과 후를 완벽하게 비교하세요.<br/>어떻게 변했는지 기록해볼까요?</p>
-          <div className="w-full space-y-4">
-            <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">청소 시작하기</button>
-            <button onClick={() => setStep(AppStep.CHAT)} className="w-full py-4 rounded-2xl border-2 border-gray-200 text-gray-700 font-black active:bg-gray-50 transition-all">청소 꿀팁 물어보기</button>
+          <h1 className="text-4xl font-black mb-4 text-gray-900">요래됐슴당</h1>
+          <p className="text-gray-600 text-sm mb-16 leading-relaxed font-bold">청소 전과 후를 완벽하게 비교하세요.<br/>공간의 변화를 기록해볼까요?</p>
+          <div className="w-full">
+            <button onClick={() => setStep(AppStep.BEFORE_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-white text-2xl font-black shadow-xl active:scale-95 transition-all">청소 시작하기</button>
           </div>
         </div>
       )}
@@ -394,21 +332,20 @@ const App: React.FC = () => {
       {step === AppStep.CLEANING && (
         <div className="flex-1 flex flex-col items-center justify-center p-12 text-center bg-white">
           <div className="relative mb-12">
-            <div className="w-64 h-64 rounded-[3rem] overflow-hidden shadow-2xl border-4 border-gray-100">
-              <img src={session.beforeImage || ''} className="w-full h-full object-cover grayscale-[0.3]" alt="Before" />
+            <div className="w-64 h-64 rounded-[3.5rem] overflow-hidden shadow-2xl border-4 border-gray-50">
+              <img src={session.beforeImage || ''} className="w-full h-full object-cover grayscale-[0.2]" alt="Before" />
             </div>
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
               <p className="text-white font-black text-2xl drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]">이랬는데{dots}</p>
             </div>
           </div>
-          <h2 className="text-2xl font-black mb-10 text-gray-900">청소 중입니다...</h2>
-          <button onClick={() => setStep(AppStep.AFTER_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-2xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">다 했어요! 사진 찍기</button>
-          <button onClick={reset} className="mt-8 text-gray-400 text-sm font-bold border-b border-gray-200">기록 중단하기</button>
+          <h2 className="text-2xl font-black mb-10 text-gray-900">열심히 청소 중...</h2>
+          <button onClick={() => setStep(AppStep.AFTER_CAPTURE)} style={{ backgroundColor: MINT_COLOR }} className="w-full py-5 rounded-3xl text-white text-xl font-black shadow-xl active:scale-95 transition-all">청소 완료! 사진 찍기</button>
+          <button onClick={reset} className="mt-8 text-gray-400 text-sm font-bold border-b border-gray-100 pb-1">기록 중단하기</button>
         </div>
       )}
 
       {step === AppStep.RESULT && <ResultView mergedImage={session.mergedImage} onReset={hardReset} />}
-      {step === AppStep.CHAT && <ChatBot onBack={() => setStep(AppStep.HOME)} />}
     </div>
   );
 };
