@@ -23,14 +23,18 @@
       50% { transform: translateY(-10px); }
     }
     .animate-bounce-slow { animation: bounce-slow 3s infinite ease-in-out; }
+    * { -webkit-tap-highlight-color: transparent; outline: none; }
   </style>
-  <!-- React 및 필수 라이브러리 로드 -->
+  <script>
+    // 브라우저에서 process.env 참조 에러 방지
+    window.process = { env: { API_KEY: "" } };
+  </script>
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@18.3.1",
-    "react-dom": "https://esm.sh/react-dom@18.3.1",
-    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "react": "https://esm.sh/react@18.2.0",
+    "react-dom": "https://esm.sh/react-dom@18.2.0",
+    "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
     "@google/genai": "https://esm.sh/@google/genai@1.35.0",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
@@ -39,12 +43,10 @@
   }
 }
 </script>
-  <!-- 브라우저에서 TSX를 직접 실행하기 위한 Babel Standalone -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
   <div id="root"></div>
-  <!-- index.tsx를 Babel로 트랜스파일하여 모듈로 실행 -->
   <script type="text/babel" data-presets="typescript,react" data-type="module" src="./index.tsx"></script>
 </body>
 </html>
