@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
   <title>요래됐슴당 - 청소 전후 사진 생성</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="manifest" href="./assets/manifest-fdaN-1QE.json">
+  <link rel="manifest" href="./manifest.json">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <style>
@@ -17,12 +17,6 @@
     }
     #root { min-height: 100vh; }
   </style>
-  <script>
-    // 브라우저 실행 시 process.env 참조 에러를 방지하기 위한 shim
-    window.process = window.process || { env: { API_KEY: "" } };
-  </script>
-
-<link rel="stylesheet" href="/index.css">
 <script type="importmap">
 {
   "imports": {
@@ -35,9 +29,9 @@
   }
 }
 </script>
-  <script type="module" crossorigin src="./assets/index-DmloXfH_.js"></script>
 </head>
 <body>
   <div id="root"></div>
+  <script type="module" src="./index.tsx"></script>
 </body>
 </html>
