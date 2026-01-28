@@ -69,9 +69,9 @@
 <script type="importmap">
 {
   "imports": {
-    "react/": "https://esm.sh/react@^19.2.4/",
     "react": "https://esm.sh/react@^19.2.4",
     "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
     "vite": "https://esm.sh/vite@^7.3.1",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
@@ -128,23 +128,37 @@
         const ctx = canvas.getContext('2d');
         if (!ctx) return '';
         
-        const isPortrait = imgB.height > imgB.width;
+        // 가로/세로 판단 (둘 중 하나가 세로형이면 좌우 배치, 둘 다 가로형이면 상하 배치)
+        const isPortrait = imgB.height > imgB.width || imgA.height > imgA.width;
+
         if (isPortrait) {
-          canvas.width = imgB.width + imgA.width;
-          canvas.height = Math.max(imgB.height, imgA.height);
-          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-          ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, imgB.width, 0);
+          // 좌우 배치: 높이를 통일하여 크기를 맞춤
+          const targetHeight = Math.max(imgB.height, imgA.height, 1200);
+          const wb = imgB.width * (targetHeight / imgB.height);
+          const wa = imgA.width * (targetHeight / imgA.height);
+
+          canvas.width = wb + wa;
+          canvas.height = targetHeight;
+          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(imgB, 0, 0, wb, targetHeight);
+          ctx.drawImage(imgA, wb, 0, wa, targetHeight);
         } else {
-          canvas.width = Math.max(imgB.width, imgA.width);
-          canvas.height = imgB.height + imgA.height;
-          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-          ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, 0, imgB.height);
+          // 상하 배치: 너비를 통일하여 크기를 맞춤
+          const targetWidth = Math.max(imgB.width, imgA.width, 1200);
+          const hb = imgB.height * (targetWidth / imgB.width);
+          const ha = imgA.height * (targetWidth / imgA.width);
+
+          canvas.width = targetWidth;
+          canvas.height = hb + ha;
+          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(imgB, 0, 0, targetWidth, hb);
+          ctx.drawImage(imgA, 0, hb, targetWidth, ha);
         }
 
         const now = new Date();
         const safeDuration = isNaN(duration) ? 0 : duration;
         const text = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()} | ${safeDuration}분 소요 | 요래됐슴당 ✨`;
-        const fontSize = Math.max(12, Math.round(canvas.height * 0.035));
+        const fontSize = Math.max(14, Math.round(canvas.height * 0.035));
         ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
         const tw = ctx.measureText(text).width;
         const rw = tw + fontSize * 2, rh = fontSize * 1.8;
@@ -190,7 +204,7 @@
 
       return (
         <div className="fixed inset-0 bg-black z-50 flex flex-col items-center">
-          <div className="w-full max-w-[800px] h-full flex flex-col relative overflow-hidden bg-black">
+          <div className="w-full max-w-[800px] h-full flex flex-col relative overflow-hidden bg-black shadow-2xl">
             <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-40 safe-top">
               <button onClick={onBack} className="text-white p-2.5 bg-black/40 rounded-full backdrop-blur-md border border-white/10 active:scale-90 transition-all">
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
@@ -201,7 +215,7 @@
               <div className="w-10" />
             </div>
             
-            <div className="flex-1 relative flex items-center justify-center bg-zinc-900">
+            <div className="flex-1 relative flex items-center justify-center bg-zinc-900 overflow-hidden">
               {err ? <p className="text-white font-medium p-8 text-center text-sm">{err}</p> : <video ref={vRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
               {mode === 'after' && beforeImg && ghost && (
                 <img src={beforeImg} className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen pointer-events-none" />
@@ -226,7 +240,12 @@
                   const f = e.target.files[0]; 
                   if(f){ 
                     const r = new FileReader(); 
-                    r.onload = (ev) => { if(ev.target.result) onCapture(ev.target.result); }; 
+                    r.onload = async (ev) => { 
+                      if(ev.target.result) {
+                        const resized = await resizeImage(ev.target.result);
+                        onCapture(resized); 
+                      }
+                    }; 
                     r.readAsDataURL(f); 
                   }
                 }}/>
@@ -242,7 +261,7 @@
       const [data, setData] = useState({ beforeImg: null, startTime: null, mergedImg: null });
 
       useEffect(() => {
-        const s = localStorage.getItem('yorae_v_final_v2');
+        const s = localStorage.getItem('yorae_v_final_v3');
         if(s){ 
           try {
             const p = JSON.parse(s); 
@@ -253,7 +272,7 @@
         }
       }, []);
 
-      useEffect(() => { localStorage.setItem('yorae_v_final_v2', JSON.stringify(data)); }, [data]);
+      useEffect(() => { localStorage.setItem('yorae_v_final_v3', JSON.stringify(data)); }, [data]);
 
       const onB = async (i) => { 
         const r = await resizeImage(i); 
@@ -283,7 +302,7 @@
         if(confirm("기록을 초기화할까요?")){ 
           setData({beforeImg:null, startTime:null, mergedImg:null}); 
           setStep(AppStep.HOME); 
-          localStorage.removeItem('yorae_v_final_v2'); 
+          localStorage.removeItem('yorae_v_final_v3'); 
         } 
       };
 
@@ -292,7 +311,7 @@
           {step === AppStep.HOME && (
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center fade-in bg-[#FAFAFA]">
               <div className="text-7xl mb-6 animate-bounce">✨</div>
-              <h1 className="text-5xl font-black mb-4 tracking-tighter text-slate-900">요래됐슴당</h1>
+              <h1 className="text-5xl font-black mb-4 tracking-tighter text-slate-900 text-shadow-sm">요래됐슴당</h1>
               <p className="text-slate-500 font-medium mb-16 leading-relaxed text-base max-w-[280px]">
                 지저분했던 공간이 깨끗하게!<br/>마법같은 변화를 기록해보세요.
               </p>
