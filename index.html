@@ -69,10 +69,10 @@
 <script type="importmap">
 {
   "imports": {
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
     "vite": "https://esm.sh/vite@^7.3.1",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
@@ -96,8 +96,8 @@
     // --- Helpers ---
     const resizeImage = (base64Str, maxWidth = 1600) => {
       return new Promise((resolve) => {
+        if (!base64Str) return resolve(null);
         const img = new Image();
-        img.src = base64Str;
         img.onload = () => {
           const canvas = document.createElement('canvas');
           let w = img.width, h = img.height;
@@ -106,45 +106,60 @@
           canvas.getContext('2d').drawImage(img, 0, 0, w, h);
           resolve(canvas.toDataURL('image/jpeg', 0.85));
         };
+        img.onerror = () => resolve(base64Str);
+        img.src = base64Str;
       });
     };
 
     const mergeImages = async (before, after, duration) => {
-      const load = (src) => new Promise(res => {
-        const i = new Image(); i.crossOrigin="anonymous"; i.onload=()=>res(i); i.src=src;
+      const load = (src) => new Promise((res, rej) => {
+        if (!src) return rej("Image source is missing");
+        const i = new Image(); 
+        i.crossOrigin = "anonymous"; 
+        i.onload = () => res(i); 
+        i.onerror = (e) => rej(e);
+        i.src = src;
       });
-      const imgB = await load(before);
-      const imgA = await load(after);
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      
-      const isPortrait = imgB.height > imgB.width;
-      if (isPortrait) {
-        canvas.width = imgB.width + imgA.width;
-        canvas.height = Math.max(imgB.height, imgA.height);
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, imgB.width, 0);
-      } else {
-        canvas.width = Math.max(imgB.width, imgA.width);
-        canvas.height = imgB.height + imgA.height;
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, 0, imgB.height);
+
+      try {
+        const imgB = await load(before);
+        const imgA = await load(after);
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return '';
+        
+        const isPortrait = imgB.height > imgB.width;
+        if (isPortrait) {
+          canvas.width = imgB.width + imgA.width;
+          canvas.height = Math.max(imgB.height, imgA.height);
+          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
+          ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, imgB.width, 0);
+        } else {
+          canvas.width = Math.max(imgB.width, imgA.width);
+          canvas.height = imgB.height + imgA.height;
+          ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
+          ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, 0, imgB.height);
+        }
+
+        const now = new Date();
+        const safeDuration = isNaN(duration) ? 0 : duration;
+        const text = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()} | ${safeDuration}분 소요 | 요래됐슴당 ✨`;
+        const fontSize = Math.max(12, Math.round(canvas.height * 0.035));
+        ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
+        const tw = ctx.measureText(text).width;
+        const rw = tw + fontSize * 2, rh = fontSize * 1.8;
+        const rx = (canvas.width - rw) / 2, ry = canvas.height - rh - fontSize;
+
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, rh/2); ctx.fill(); }
+        else { ctx.fillRect(rx, ry, rw, rh); }
+        ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(text, rx + rw/2, ry + rh/2 + 2);
+        return canvas.toDataURL('image/jpeg', 0.9);
+      } catch (err) {
+        console.error("Merge process error:", err);
+        return '';
       }
-
-      const now = new Date();
-      const text = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()} | ${duration}분 소요 | 요래됐슴당 ✨`;
-      const fontSize = Math.round(canvas.height * 0.035);
-      ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
-      const tw = ctx.measureText(text).width;
-      const rw = tw + fontSize * 2, rh = fontSize * 1.8;
-      const rx = (canvas.width - rw) / 2, ry = canvas.height - rh - fontSize;
-
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, rh/2); ctx.fill(); }
-      else { ctx.fillRect(rx, ry, rw, rh); }
-      ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(text, rx + rw/2, ry + rh/2 + 2);
-      return canvas.toDataURL('image/jpeg', 0.9);
     };
 
     // --- Components ---
@@ -155,9 +170,13 @@
 
       useEffect(() => {
         let s = null;
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          .then(res => { s = res; if(vRef.current) vRef.current.srcObject = res; })
-          .catch(() => setErr("카메라를 사용할 수 없습니다. 권한 설정을 확인해주세요."));
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+          navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+            .then(res => { s = res; if(vRef.current) vRef.current.srcObject = res; })
+            .catch(() => setErr("카메라를 사용할 수 없습니다. 권한 설정을 확인해주세요."));
+        } else {
+          setErr("이 브라우저에서는 카메라를 지원하지 않습니다.");
+        }
         return () => s?.getTracks().forEach(t => t.stop());
       }, []);
 
@@ -204,7 +223,12 @@
               <label className="w-12 h-12 rounded-xl bg-white/10 flex flex-col items-center justify-center text-white cursor-pointer active:bg-white/20 border border-white/10">
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
-                  const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=(ev)=>onCapture(ev.target.result); r.readAsDataURL(f); }
+                  const f = e.target.files[0]; 
+                  if(f){ 
+                    const r = new FileReader(); 
+                    r.onload = (ev) => { if(ev.target.result) onCapture(ev.target.result); }; 
+                    r.readAsDataURL(f); 
+                  }
                 }}/>
               </label>
             </div>
@@ -218,15 +242,50 @@
       const [data, setData] = useState({ beforeImg: null, startTime: null, mergedImg: null });
 
       useEffect(() => {
-        const s = localStorage.getItem('yorae_v_final');
-        if(s){ const p = JSON.parse(s); setData(p); if(p.mergedImg) setStep(AppStep.RESULT); else if(p.beforeImg) setStep(AppStep.CLEANING); }
+        const s = localStorage.getItem('yorae_v_final_v2');
+        if(s){ 
+          try {
+            const p = JSON.parse(s); 
+            setData(p); 
+            if(p.mergedImg) setStep(AppStep.RESULT); 
+            else if(p.beforeImg) setStep(AppStep.CLEANING); 
+          } catch(e) { console.error("Session load error", e); }
+        }
       }, []);
 
-      useEffect(() => { localStorage.setItem('yorae_v_final', JSON.stringify(data)); }, [data]);
+      useEffect(() => { localStorage.setItem('yorae_v_final_v2', JSON.stringify(data)); }, [data]);
 
-      const onB = async (i) => { const r = await resizeImage(i); setData({...data, beforeImg: r, startTime: Date.now(), mergedImg: null}); setStep(AppStep.CLEANING); };
-      const onA = async (i) => { const r = await resizeImage(i); const d = Math.round((Date.now()-data.startTime)/60000); const m = await mergeImages(data.beforeImg, r, d); setData({...data, mergedImg: m}); setStep(AppStep.RESULT); };
-      const clr = () => { if(confirm("기록을 초기화할까요?")){ setData({beforeImg:null, startTime:null, mergedImg:null}); setStep(AppStep.HOME); localStorage.removeItem('yorae_v_final'); } };
+      const onB = async (i) => { 
+        const r = await resizeImage(i); 
+        setData(prev => ({...prev, beforeImg: r, startTime: Date.now(), mergedImg: null})); 
+        setStep(AppStep.CLEANING); 
+      };
+
+      const onA = async (i) => { 
+        if (!data.beforeImg) {
+          alert("이전 사진 정보가 없습니다. 처음부터 다시 시작해주세요.");
+          setStep(AppStep.HOME);
+          return;
+        }
+        const r = await resizeImage(i); 
+        const startTime = data.startTime || Date.now();
+        const duration = Math.round((Date.now() - startTime) / 60000); 
+        const m = await mergeImages(data.beforeImg, r, duration); 
+        if (m) {
+          setData(prev => ({...prev, mergedImg: m})); 
+          setStep(AppStep.RESULT); 
+        } else {
+          alert("결과 이미지 생성에 실패했습니다. 다시 시도해주세요.");
+        }
+      };
+
+      const clr = () => { 
+        if(confirm("기록을 초기화할까요?")){ 
+          setData({beforeImg:null, startTime:null, mergedImg:null}); 
+          setStep(AppStep.HOME); 
+          localStorage.removeItem('yorae_v_final_v2'); 
+        } 
+      };
 
       return (
         <div className="app-container">
@@ -266,8 +325,12 @@
                 <p className="font-bold text-slate-300 text-[10px] mb-1 uppercase tracking-[0.15em]">Before & After</p>
                 <h2 className="text-4xl font-black" style={{color:MINT_COLOR}}>요래됐슴당!</h2>
               </div>
-              <div className="rounded-[2.5rem] shadow-lg mb-10 w-full overflow-hidden border border-slate-100">
-                <img src={data.mergedImg} className="w-full h-auto" />
+              <div className="rounded-[2.5rem] shadow-lg mb-10 w-full overflow-hidden border border-slate-100 bg-slate-50 min-h-[300px] flex items-center justify-center">
+                {data.mergedImg ? (
+                  <img src={data.mergedImg} className="w-full h-auto" />
+                ) : (
+                  <div className="text-slate-300 font-bold">이미지 로딩 중...</div>
+                )}
               </div>
               <div className="max-w-[320px] mx-auto w-full space-y-3 mb-8">
                 <button onClick={()=>{const l=document.createElement('a'); l.href=data.mergedImg; l.download=`yorae_${Date.now()}.jpg`; l.click();}} className="w-full py-4 rounded-2xl text-white text-xl font-bold mint-btn">이미지 저장하기</button>
