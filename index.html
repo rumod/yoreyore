@@ -21,6 +21,7 @@
       display: flex; justify-content: center;
       color: #1e293b;
       -webkit-tap-highlight-color: transparent;
+      overflow-x: hidden;
     }
     #root {
       width: 100%;
@@ -36,11 +37,34 @@
     .mint-text { color: var(--mint); }
     .animate-float { animation: float 3s ease-in-out infinite; }
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-    video { width: 100%; height: 100%; object-fit: cover; }
-    .ghost {
-      position: absolute; inset: 0; opacity: 0.35;
-      mix-blend-mode: screen; pointer-events: none; object-fit: cover;
+    
+    /* 카메라 영역 수정: 여백 없이 꽉 채우기 */
+    .camera-container {
+      position: relative;
+      flex: 1;
+      background-color: #18181b; /* zinc-900 */
+      overflow: hidden;
     }
+    video {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover; /* 영역을 가득 채우도록 설정 */
+    }
+    .ghost {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      opacity: 0.35;
+      mix-blend-mode: screen;
+      pointer-events: none;
+    }
+
     .safe-top { padding-top: env(safe-area-inset-top, 16px); }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
     
@@ -77,7 +101,6 @@
     const MINT = '#76D7C4';
     const KEY = 'YORAE_DATA_FINAL';
 
-    // 이미지 로드 헬퍼
     const loadImage = (src) => new Promise((res) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
@@ -85,7 +108,6 @@
       img.src = src;
     });
 
-    // 결과 이미지 생성 (병합)
     const createResult = async (beforeSrc, afterSrc, time) => {
       const [imgB, imgA] = await Promise.all([loadImage(beforeSrc), loadImage(afterSrc)]);
       const canvas = document.createElement('canvas');
@@ -125,7 +147,6 @@
         ctx.drawImage(imgA, 0, ah, aw, ah);
       }
 
-      // 하단 텍스트 바
       const fontSize = Math.round(canvas.height * 0.03);
       ctx.font = `bold ${fontSize}px sans-serif`;
       const txt = `${new Date().toLocaleDateString()} | ${time}분 소요 | 요래됐슴당 ✨`;
@@ -154,7 +175,6 @@
       const vRef = useRef(null);
       const fRef = useRef(null);
 
-      // 로컬 스토리지에서 복구
       useEffect(() => {
         const saved = localStorage.getItem(KEY);
         if (saved) {
@@ -164,10 +184,11 @@
         }
       }, []);
 
-      // 카메라 시작
       const startCam = async () => {
         try {
-          const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          const s = await navigator.mediaDevices.getUserMedia({ 
+            video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } } 
+          });
           if (vRef.current) vRef.current.srcObject = s;
         } catch (e) { 
           alert("카메라 권한이 필요합니다."); 
@@ -235,7 +256,7 @@
           )}
 
           {step === 'CAM' && (
-            <div className="fixed inset-0 bg-black z-50 flex flex-col max-w-[480px] mx-auto">
+            <div className="fixed inset-0 bg-black z-50 flex flex-col max-w-[480px] mx-auto overflow-hidden">
               <div className="absolute top-0 inset-x-0 p-5 flex justify-between items-center z-50 safe-top">
                 <button onClick={() => setStep(mode==='BEFORE'?'HOME':'CLEAN')} className="p-2 bg-white/10 rounded-full text-white backdrop-blur-md">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
@@ -243,11 +264,13 @@
                 <div className="px-3 py-1 bg-white/20 rounded-full text-white font-bold text-[10px] tracking-wider uppercase">{mode} SHOOT</div>
                 <div className="w-9"></div>
               </div>
-              <div className="flex-1 relative bg-zinc-900 flex items-center justify-center overflow-hidden">
+              
+              <div className="camera-container">
                 <video ref={vRef} autoPlay playsInline muted />
                 {mode === 'AFTER' && ghost && data.b && <img src={data.b} className="ghost" />}
               </div>
-              <div className="h-36 bg-zinc-950 flex justify-between items-center px-8 safe-bottom">
+
+              <div className="h-40 bg-zinc-950 flex justify-between items-center px-10 safe-bottom z-50">
                 <div className="w-12">
                   {mode === 'AFTER' && (
                     <button onClick={()=>setGhost(!ghost)} className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center text-[10px] font-bold ${ghost?'border-white text-white':'border-white/20 text-white/30'}`}>
@@ -255,7 +278,7 @@
                     </button>
                   )}
                 </div>
-                <button onClick={takePhoto} className="w-16 h-16 bg-white rounded-full border-[4px] border-zinc-800 shadow-xl active:scale-95 transition-transform"></button>
+                <button onClick={takePhoto} className="w-20 h-20 bg-white rounded-full border-[6px] border-zinc-800 shadow-xl active:scale-95 transition-transform"></button>
                 <button onClick={()=>fRef.current.click()} className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-white">
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                 </button>
