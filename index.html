@@ -3,80 +3,70 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>요래됐슴당 - 청소 전후 비교</title>
+  <title>요래됐슴당</title>
   
-  <!-- 라이브러리 (UMD 방식) -->
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- 라이브러리 로드 -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
+  <script src="https://cdn.tailwindcss.com"></script>
+  
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;700;900&display=swap');
-    
+    @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;600;800&display=swap');
+    :root { --mint: #76D7C4; }
     body {
-      background-color: #F8FAFC;
+      background-color: #f8fafc;
       font-family: 'Pretendard', sans-serif;
-      margin: 0;
-      padding: 0;
-      overflow-x: hidden;
+      margin: 0; padding: 0;
+      display: flex; justify-content: center;
+      color: #1e293b;
       -webkit-tap-highlight-color: transparent;
-      color: #1E293B;
     }
-    #root { 
-      min-height: 100vh; 
-      display: flex; 
-      flex-direction: column; 
-      align-items: center; 
-    }
-    .app-container {
+    #root {
       width: 100%;
-      max-width: 800px;
+      max-width: 480px;
       min-height: 100vh;
-      background-color: #FFFFFF;
-      box-shadow: 0 0 40px rgba(0,0,0,0.03);
+      background: white;
       position: relative;
       display: flex;
       flex-direction: column;
+      box-shadow: 0 4px 25px rgba(0,0,0,0.05);
     }
-    .safe-top { padding-top: env(safe-area-inset-top); }
-    .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+    .mint-bg { background-color: var(--mint); }
+    .mint-text { color: var(--mint); }
+    .animate-float { animation: float 3s ease-in-out infinite; }
+    @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+    video { width: 100%; height: 100%; object-fit: cover; }
+    .ghost {
+      position: absolute; inset: 0; opacity: 0.35;
+      mix-blend-mode: screen; pointer-events: none; object-fit: cover;
+    }
+    .safe-top { padding-top: env(safe-area-inset-top, 16px); }
+    .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
     
-    .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
-    @keyframes fadeIn { 
-      from { opacity: 0; transform: translateY(10px); } 
-      to { opacity: 1; transform: translateY(0); } 
+    /* 버튼 스타일 */
+    .btn-primary {
+      width: 100%;
+      padding: 1rem;
+      border-radius: 1rem;
+      font-weight: 700;
+      font-size: 1.125rem;
+      transition: all 0.2s;
+      background-color: var(--mint);
+      color: white;
+      box-shadow: 0 4px 12px rgba(118, 215, 196, 0.3);
     }
-    
-    .mint-btn {
-      background-color: #76D7C4;
-      box-shadow: 0 8px 16px -4px rgba(118, 215, 196, 0.3);
-      transition: all 0.2s ease;
-    }
-    .mint-btn:active { transform: scale(0.97); filter: brightness(0.95); }
-
-    .loading-dots::after {
-      content: '.';
-      animation: dots 1.5s steps(5, end) infinite;
-    }
-    @keyframes dots {
-      0%, 20% { content: '.'; }
-      40% { content: '..'; }
-      60% { content: '...'; }
-      80%, 100% { content: ''; }
+    .btn-primary:active { transform: scale(0.98); opacity: 0.9; }
+    .btn-secondary {
+      width: 100%;
+      padding: 0.875rem;
+      border-radius: 1rem;
+      font-weight: 600;
+      font-size: 1rem;
+      background-color: #f1f5f9;
+      color: #475569;
     }
   </style>
-<script type="importmap">
-{
-  "imports": {
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
-  }
-}
-</script>
 </head>
 <body>
   <div id="root"></div>
@@ -84,212 +74,234 @@
   <script type="text/babel">
     const { useState, useEffect, useRef } = React;
 
-    const MINT_COLOR = '#76D7C4';
-    const AppStep = {
-      HOME: 'HOME',
-      BEFORE_CAPTURE: 'BEFORE_CAPTURE',
-      CLEANING: 'CLEANING',
-      AFTER_CAPTURE: 'AFTER_CAPTURE',
-      RESULT: 'RESULT'
-    };
+    const MINT = '#76D7C4';
+    const KEY = 'YORAE_DATA_FINAL';
 
-    // --- Helpers ---
-    const resizeImage = (base64Str, maxWidth = 1600) => {
-      return new Promise((resolve) => {
-        const img = new Image();
-        img.src = base64Str;
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let w = img.width, h = img.height;
-          if (w > maxWidth) { h = Math.round((h * maxWidth) / w); w = maxWidth; }
-          canvas.width = w; canvas.height = h;
-          canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.85));
-        };
-      });
-    };
+    // 이미지 로드 헬퍼
+    const loadImage = (src) => new Promise((res) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => res(img);
+      img.src = src;
+    });
 
-    const mergeImages = async (before, after, duration) => {
-      const load = (src) => new Promise(res => {
-        const i = new Image(); i.crossOrigin="anonymous"; i.onload=()=>res(i); i.src=src;
-      });
-      const imgB = await load(before);
-      const imgA = await load(after);
+    // 결과 이미지 생성 (병합)
+    const createResult = async (beforeSrc, afterSrc, time) => {
+      const [imgB, imgA] = await Promise.all([loadImage(beforeSrc), loadImage(afterSrc)]);
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
-      
-      const isPortrait = imgB.height > imgB.width;
+
+      const aw = imgA.width, ah = imgA.height;
+      const isPortrait = ah > aw;
+
       if (isPortrait) {
-        canvas.width = imgB.width + imgA.width;
-        canvas.height = Math.max(imgB.height, imgA.height);
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, imgB.width, 0);
+        canvas.width = aw * 2; canvas.height = ah;
       } else {
-        canvas.width = Math.max(imgB.width, imgA.width);
-        canvas.height = imgB.height + imgA.height;
-        ctx.fillStyle = '#FFFFFF'; ctx.fillRect(0,0,canvas.width, canvas.height);
-        ctx.drawImage(imgB, 0, 0); ctx.drawImage(imgA, 0, imgB.height);
+        canvas.width = aw; canvas.height = ah * 2;
       }
 
-      const now = new Date();
-      const text = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()} | ${duration}분 소요 | 요래됐슴당 ✨`;
-      const fontSize = Math.round(canvas.height * 0.035);
-      ctx.font = `bold ${fontSize}px Pretendard, sans-serif`;
-      const tw = ctx.measureText(text).width;
-      const rw = tw + fontSize * 2, rh = fontSize * 1.8;
-      const rx = (canvas.width - rw) / 2, ry = canvas.height - rh - fontSize;
+      const drawCrop = (img, x, y, tw, th) => {
+        const iRatio = img.width / img.height;
+        const tRatio = tw / th;
+        let sx, sy, sw, sh;
+        if (iRatio > tRatio) {
+          sh = img.height; sw = img.height * tRatio;
+          sx = (img.width - sw) / 2; sy = 0;
+        } else {
+          sw = img.width; sh = img.width / tRatio;
+          sx = 0; sy = (img.height - sh) / 2;
+        }
+        ctx.drawImage(img, sx, sy, sw, sh, x, y, tw, th);
+      };
 
-      ctx.fillStyle = 'rgba(0,0,0,0.65)';
-      if (ctx.roundRect) { ctx.beginPath(); ctx.roundRect(rx, ry, rw, rh, rh/2); ctx.fill(); }
-      else { ctx.fillRect(rx, ry, rw, rh); }
-      ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText(text, rx + rw/2, ry + rh/2 + 2);
+      ctx.fillStyle = '#FFFFFF';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      if (isPortrait) {
+        drawCrop(imgB, 0, 0, aw, ah);
+        ctx.drawImage(imgA, aw, 0, aw, ah);
+      } else {
+        drawCrop(imgB, 0, 0, aw, ah);
+        ctx.drawImage(imgA, 0, ah, aw, ah);
+      }
+
+      // 하단 텍스트 바
+      const fontSize = Math.round(canvas.height * 0.03);
+      ctx.font = `bold ${fontSize}px sans-serif`;
+      const txt = `${new Date().toLocaleDateString()} | ${time}분 소요 | 요래됐슴당 ✨`;
+      const tw = ctx.measureText(txt).width;
+      const bw = tw + fontSize * 2, bh = fontSize * 1.8;
+      const bx = (canvas.width - bw) / 2, by = canvas.height - bh - fontSize;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      if (ctx.roundRect) ctx.roundRect(bx, by, bw, bh, bh/2); else ctx.rect(bx, by, bw, bh);
+      ctx.fill();
+
+      ctx.fillStyle = 'white';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(txt, bx + bw / 2, by + bh / 2 + 1);
+
       return canvas.toDataURL('image/jpeg', 0.9);
     };
 
-    // --- Components ---
-    const CameraView = ({ mode, onCapture, onBack, beforeImg }) => {
-      const vRef = useRef(null);
+    const App = () => {
+      const [step, setStep] = useState('HOME');
+      const [mode, setMode] = useState('BEFORE');
+      const [data, setData] = useState({ b: null, start: null, res: null });
       const [ghost, setGhost] = useState(true);
-      const [err, setErr] = useState(null);
+      const [loading, setLoading] = useState(false);
+      
+      const vRef = useRef(null);
+      const fRef = useRef(null);
 
+      // 로컬 스토리지에서 복구
       useEffect(() => {
-        let s = null;
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
-          .then(res => { s = res; if(vRef.current) vRef.current.srcObject = res; })
-          .catch(() => setErr("카메라를 사용할 수 없습니다. 권한 설정을 확인해주세요."));
-        return () => s?.getTracks().forEach(t => t.stop());
+        const saved = localStorage.getItem(KEY);
+        if (saved) {
+          const p = JSON.parse(saved);
+          setData(d => ({ ...d, b: p.b, start: p.start }));
+          if (p.b) setStep('CLEAN');
+        }
       }, []);
 
-      const snap = () => {
-        if (!vRef.current) return;
+      // 카메라 시작
+      const startCam = async () => {
+        try {
+          const s = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+          if (vRef.current) vRef.current.srcObject = s;
+        } catch (e) { 
+          alert("카메라 권한이 필요합니다."); 
+          setStep('HOME'); 
+        }
+      };
+
+      useEffect(() => {
+        if (step === 'CAM') startCam();
+        return () => {
+          if (vRef.current?.srcObject) {
+            vRef.current.srcObject.getTracks().forEach(t => t.stop());
+          }
+        };
+      }, [step]);
+
+      const onCaptured = (blob) => {
+        const r = new FileReader();
+        r.readAsDataURL(blob);
+        r.onloadend = async () => {
+          const b64 = r.result;
+          if (mode === 'BEFORE') {
+            const now = Date.now();
+            setData(prev => ({ ...prev, b: b64, start: now }));
+            localStorage.setItem(KEY, JSON.stringify({ b: b64, start: now }));
+            setStep('CLEAN');
+          } else {
+            setLoading(true);
+            const dur = data.start ? Math.max(1, Math.round((Date.now() - data.start) / 60000)) : 1;
+            const res = await createResult(data.b, b64, dur);
+            setData(prev => ({ ...prev, res }));
+            setStep('RESULT');
+            setLoading(false);
+          }
+        };
+      };
+
+      const takePhoto = () => {
+        const v = vRef.current;
+        if (!v) return;
         const c = document.createElement('canvas');
-        c.width = vRef.current.videoWidth; c.height = vRef.current.videoHeight;
-        c.getContext('2d').drawImage(vRef.current, 0, 0);
-        onCapture(c.toDataURL('image/jpeg', 0.9));
+        c.width = v.videoWidth; c.height = v.videoHeight;
+        c.getContext('2d').drawImage(v, 0, 0);
+        c.toBlob(b => b && onCaptured(b), 'image/jpeg', 0.9);
       };
 
       return (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col items-center">
-          <div className="w-full max-w-[800px] h-full flex flex-col relative overflow-hidden bg-black">
-            <div className="absolute top-0 left-0 right-0 p-4 flex justify-between items-center z-40 safe-top">
-              <button onClick={onBack} className="text-white p-2.5 bg-black/40 rounded-full backdrop-blur-md border border-white/10 active:scale-90 transition-all">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7" /></svg>
-              </button>
-              <div className="bg-black/40 px-4 py-1.5 rounded-full border border-white/20 backdrop-blur-sm">
-                <span className="text-white font-bold text-xs uppercase tracking-wider">{mode === 'before' ? '청소 전' : '청소 후'}</span>
-              </div>
-              <div className="w-10" />
+        <div className="flex flex-col flex-1">
+          {loading && (
+            <div className="fixed inset-0 bg-white/80 z-[100] flex flex-col items-center justify-center">
+              <div className="w-8 h-8 border-4 border-slate-200 border-t-[#76D7C4] rounded-full animate-spin mb-3"></div>
+              <p className="font-bold text-slate-600 text-sm">결과물을 만드는 중...</p>
             </div>
-            
-            <div className="flex-1 relative flex items-center justify-center bg-zinc-900">
-              {err ? <p className="text-white font-medium p-8 text-center text-sm">{err}</p> : <video ref={vRef} autoPlay playsInline muted className="w-full h-full object-cover" />}
-              {mode === 'after' && beforeImg && ghost && (
-                <img src={beforeImg} className="absolute inset-0 w-full h-full object-cover opacity-30 mix-blend-screen pointer-events-none" />
-              )}
-            </div>
+          )}
 
-            <div className="h-32 flex justify-between items-center px-10 bg-black safe-bottom border-t border-white/5">
-              {mode === 'after' ? (
-                <button onClick={()=>setGhost(!ghost)} className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center transition-all ${ghost ? 'bg-[#76D7C4] border-[#76D7C4] text-black shadow-md' : 'border-white/20 text-white/40'}`}>
-                  <span className="text-[10px] font-black uppercase">Guide</span>
-                  <span className="text-[8px] font-bold">{ghost ? 'ON' : 'OFF'}</span>
-                </button>
-              ) : <div className="w-12" />}
-              
-              <button onClick={snap} className="w-20 h-20 border-4 border-white/20 rounded-full flex items-center justify-center active:scale-90 transition-transform">
-                <div className="w-16 h-16 bg-white rounded-full shadow-inner"/>
-              </button>
-
-              <label className="w-12 h-12 rounded-xl bg-white/10 flex flex-col items-center justify-center text-white cursor-pointer active:bg-white/20 border border-white/10">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                <input type="file" className="hidden" accept="image/*" onChange={(e)=>{
-                  const f = e.target.files[0]; if(f){ const r=new FileReader(); r.onload=(ev)=>onCapture(ev.target.result); r.readAsDataURL(f); }
-                }}/>
-              </label>
-            </div>
-          </div>
-        </div>
-      );
-    };
-
-    const App = () => {
-      const [step, setStep] = useState(AppStep.HOME);
-      const [data, setData] = useState({ beforeImg: null, startTime: null, mergedImg: null });
-
-      useEffect(() => {
-        const s = localStorage.getItem('yorae_v_final');
-        if(s){ const p = JSON.parse(s); setData(p); if(p.mergedImg) setStep(AppStep.RESULT); else if(p.beforeImg) setStep(AppStep.CLEANING); }
-      }, []);
-
-      useEffect(() => { localStorage.setItem('yorae_v_final', JSON.stringify(data)); }, [data]);
-
-      const onB = async (i) => { const r = await resizeImage(i); setData({...data, beforeImg: r, startTime: Date.now(), mergedImg: null}); setStep(AppStep.CLEANING); };
-      const onA = async (i) => { const r = await resizeImage(i); const d = Math.round((Date.now()-data.startTime)/60000); const m = await mergeImages(data.beforeImg, r, d); setData({...data, mergedImg: m}); setStep(AppStep.RESULT); };
-      const clr = () => { if(confirm("기록을 초기화할까요?")){ setData({beforeImg:null, startTime:null, mergedImg:null}); setStep(AppStep.HOME); localStorage.removeItem('yorae_v_final'); } };
-
-      return (
-        <div className="app-container">
-          {step === AppStep.HOME && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center fade-in bg-[#FAFAFA]">
-              <div className="text-7xl mb-6 animate-bounce">✨</div>
-              <h1 className="text-5xl font-black mb-4 tracking-tighter text-slate-900">요래됐슴당</h1>
-              <p className="text-slate-500 font-medium mb-16 leading-relaxed text-base max-w-[280px]">
-                지저분했던 공간이 깨끗하게!<br/>마법같은 변화를 기록해보세요.
+          {step === 'HOME' && (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+              <div className="text-6xl mb-6 animate-float">✨</div>
+              <h1 className="text-3xl font-extrabold mb-2 tracking-tight">요래됐슴당</h1>
+              <p className="text-slate-500 font-medium mb-12 text-sm leading-relaxed px-4">
+                이랬는데~ 요래됐슴당!<br/>청소 전후의 극적인 변화를 기록하세요.
               </p>
-              <div className="w-full max-w-[320px] space-y-3">
-                <button onClick={()=>setStep(AppStep.BEFORE_CAPTURE)} className="w-full py-4 rounded-2xl text-white text-xl font-bold mint-btn">새 기록 시작하기</button>
-                {data.beforeImg && !data.mergedImg && <button onClick={()=>setStep(AppStep.CLEANING)} className="w-full py-4 rounded-2xl border border-slate-200 font-bold text-slate-700 bg-white hover:bg-slate-50 transition-all">기존 기록 이어하기</button>}
+              <button onClick={() => { setStep('CAM'); setMode('BEFORE'); }} className="btn-primary">기록 시작하기</button>
+            </div>
+          )}
+
+          {step === 'CAM' && (
+            <div className="fixed inset-0 bg-black z-50 flex flex-col max-w-[480px] mx-auto">
+              <div className="absolute top-0 inset-x-0 p-5 flex justify-between items-center z-50 safe-top">
+                <button onClick={() => setStep(mode==='BEFORE'?'HOME':'CLEAN')} className="p-2 bg-white/10 rounded-full text-white backdrop-blur-md">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M15 19l-7-7 7-7"/></svg>
+                </button>
+                <div className="px-3 py-1 bg-white/20 rounded-full text-white font-bold text-[10px] tracking-wider uppercase">{mode} SHOOT</div>
+                <div className="w-9"></div>
+              </div>
+              <div className="flex-1 relative bg-zinc-900 flex items-center justify-center overflow-hidden">
+                <video ref={vRef} autoPlay playsInline muted />
+                {mode === 'AFTER' && ghost && data.b && <img src={data.b} className="ghost" />}
+              </div>
+              <div className="h-36 bg-zinc-950 flex justify-between items-center px-8 safe-bottom">
+                <div className="w-12">
+                  {mode === 'AFTER' && (
+                    <button onClick={()=>setGhost(!ghost)} className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center text-[10px] font-bold ${ghost?'border-white text-white':'border-white/20 text-white/30'}`}>
+                      GHOST
+                    </button>
+                  )}
+                </div>
+                <button onClick={takePhoto} className="w-16 h-16 bg-white rounded-full border-[4px] border-zinc-800 shadow-xl active:scale-95 transition-transform"></button>
+                <button onClick={()=>fRef.current.click()} className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-white">
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                </button>
+                <input type="file" ref={fRef} className="hidden" accept="image/*" onChange={(e)=>e.target.files[0] && onCaptured(e.target.files[0])} />
               </div>
             </div>
           )}
-          
-          {step === AppStep.CLEANING && (
-            <div className="flex-1 flex flex-col items-center justify-center p-8 fade-in text-center">
-              <div className="w-full max-w-[320px] aspect-square rounded-[3rem] overflow-hidden shadow-xl border-[8px] border-slate-50 mb-12 relative bg-slate-100">
-                <img src={data.beforeImg} className="w-full h-full object-cover grayscale-[0.1]" />
-                <div className="absolute inset-0 bg-black/20 flex items-center justify-center">
-                  <span className="text-white font-black text-2xl drop-shadow-md">이랬는데...</span>
+
+          {step === 'CLEAN' && (
+            <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
+              <div className="relative mb-10">
+                <div className="w-52 h-52 rounded-[2.5rem] overflow-hidden shadow-xl border-4 border-slate-50">
+                  <img src={data.b} className="w-full h-full object-cover grayscale-[0.3]" />
+                </div>
+                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
+                  <span className="bg-slate-800 text-white px-4 py-1.5 rounded-full font-bold text-sm shadow-lg">BEFORE</span>
                 </div>
               </div>
-              <h2 className="text-2xl font-black mb-12 text-slate-800 loading-dots">열심히 청소 중</h2>
-              <div className="w-full max-w-[320px] space-y-3">
-                <button onClick={()=>setStep(AppStep.AFTER_CAPTURE)} className="w-full py-4 rounded-2xl text-white text-xl font-bold mint-btn">청소 끝! 결과 찍기</button>
-                <button onClick={clr} className="w-full py-3 text-slate-300 font-bold text-xs underline decoration-slate-200 hover:text-slate-400">기록 포기하기</button>
-              </div>
+              <h2 className="text-2xl font-extrabold mb-4 text-slate-800">청소를 완료하셨나요?</h2>
+              <p className="text-slate-500 text-sm mb-10">변화된 공간의 사진을 찍어<br/>비교샷을 완성하세요!</p>
+              <button onClick={()=>{setStep('CAM'); setMode('AFTER');}} className="btn-primary">요래됐슴당 촬영</button>
+              <button onClick={()=>{if(confirm("기록을 삭제할까요?")){localStorage.removeItem(KEY); setData({b:null,start:null,res:null}); setStep('HOME');}}} className="mt-8 text-slate-400 font-bold text-xs underline uppercase tracking-widest">Reset</button>
             </div>
           )}
-          
-          {step === AppStep.RESULT && (
-            <div className="flex-1 flex flex-col p-6 fade-in bg-white overflow-y-auto">
-              <div className="text-center my-8">
-                <p className="font-bold text-slate-300 text-[10px] mb-1 uppercase tracking-[0.15em]">Before & After</p>
-                <h2 className="text-4xl font-black" style={{color:MINT_COLOR}}>요래됐슴당!</h2>
+
+          {step === 'RESULT' && (
+            <div className="flex-1 flex flex-col px-6 py-8 overflow-y-auto">
+              <div className="text-center mt-6 mb-8">
+                <span className="text-[10px] font-bold tracking-[0.2em] text-[#76D7C4] uppercase">Magic Complete</span>
+                <h1 className="text-3xl font-black mt-1">요래됐슴당!</h1>
               </div>
-              <div className="rounded-[2.5rem] shadow-lg mb-10 w-full overflow-hidden border border-slate-100">
-                <img src={data.mergedImg} className="w-full h-auto" />
+              <div className="rounded-2xl overflow-hidden shadow-xl border-2 border-slate-50 mb-8 bg-slate-50">
+                <img src={data.res} className="w-full h-auto" />
               </div>
-              <div className="max-w-[320px] mx-auto w-full space-y-3 mb-8">
-                <button onClick={()=>{const l=document.createElement('a'); l.href=data.mergedImg; l.download=`yorae_${Date.now()}.jpg`; l.click();}} className="w-full py-4 rounded-2xl text-white text-xl font-bold mint-btn">이미지 저장하기</button>
-                <button onClick={()=>setStep(AppStep.HOME)} className="w-full py-4 rounded-2xl border border-slate-100 font-bold text-slate-900 hover:bg-slate-50">홈으로 돌아가기</button>
-                <button onClick={clr} className="w-full py-2 text-slate-300 font-medium text-[10px] underline decoration-slate-100">데이터 삭제</button>
+              <div className="space-y-3 pb-8 safe-bottom">
+                <button onClick={()=>{const a=document.createElement('a'); a.href=data.res; a.download=`yorae_${Date.now()}.jpg`; a.click();}} className="btn-primary">이미지 저장하기</button>
+                <button onClick={()=>{localStorage.removeItem(KEY); setData({b:null,start:null,res:null}); setStep('HOME');}} className="btn-secondary">새로 기록하기</button>
               </div>
             </div>
-          )}
-          
-          {(step === AppStep.BEFORE_CAPTURE || step === AppStep.AFTER_CAPTURE) && (
-            <CameraView 
-              mode={step===AppStep.BEFORE_CAPTURE?'before':'after'} 
-              onCapture={step===AppStep.BEFORE_CAPTURE?onB:onA} 
-              onBack={()=>setStep(step===AppStep.BEFORE_CAPTURE?AppStep.HOME:AppStep.CLEANING)} 
-              beforeImg={data.beforeImg} 
-            />
           )}
         </div>
       );
     };
 
-    const root = ReactDOM.createRoot(document.getElementById('root'));
+    const container = document.getElementById('root');
+    const root = ReactDOM.createRoot(container);
     root.render(<App />);
   </script>
 </body>
