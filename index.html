@@ -38,7 +38,6 @@
     .animate-float { animation: float 3s ease-in-out infinite; }
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
     
-    /* 카메라 영역: 여백 제거 및 꽉 채우기 설정 */
     .camera-area {
       position: relative;
       flex: 1;
@@ -51,7 +50,7 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover; /* 영역을 가득 채우며 비율 유지 */
+      object-fit: cover;
       display: block;
     }
     .ghost {
@@ -96,7 +95,7 @@
   <div id="root"></div>
 
   <script type="text/babel">
-    const { useState, useEffect, useRef } = React;
+    const { useState, useEffect, useRef, useCallback } = React;
 
     const MINT = '#76D7C4';
     const KEY = 'YORAE_DATA_FINAL';
@@ -180,7 +179,14 @@
         if (saved) {
           const p = JSON.parse(saved);
           setData(d => ({ ...d, b: p.b, start: p.start }));
-          if (p.b) setStep('CLEAN');
+          if (p.b && step === 'HOME') setStep('CLEAN');
+        }
+      }, []);
+
+      const stopCam = useCallback(() => {
+        if (vRef.current && vRef.current.srcObject) {
+          vRef.current.srcObject.getTracks().forEach(t => t.stop());
+          vRef.current.srcObject = null;
         }
       }, []);
 
@@ -197,38 +203,51 @@
       };
 
       useEffect(() => {
-        if (step === 'CAM') startCam();
-        return () => {
-          if (vRef.current?.srcObject) {
-            vRef.current.srcObject.getTracks().forEach(t => t.stop());
-          }
-        };
-      }, [step]);
+        if (step === 'CAM') {
+          startCam();
+        } else {
+          stopCam();
+        }
+        return () => stopCam();
+      }, [step, stopCam]);
 
       const onCaptured = (blob) => {
+        if (!blob) return;
+        setLoading(true);
+        
         const r = new FileReader();
-        r.readAsDataURL(blob);
         r.onloadend = async () => {
           const b64 = r.result;
+          
+          // 사진 확보 후 즉시 카메라 종료
+          stopCam();
+
           if (mode === 'BEFORE') {
             const now = Date.now();
             setData(prev => ({ ...prev, b: b64, start: now }));
             localStorage.setItem(KEY, JSON.stringify({ b: b64, start: now }));
             setStep('CLEAN');
-          } else {
-            setLoading(true);
-            const dur = data.start ? Math.max(1, Math.round((Date.now() - data.start) / 60000)) : 1;
-            const res = await createResult(data.b, b64, dur);
-            setData(prev => ({ ...prev, res }));
-            setStep('RESULT');
             setLoading(false);
+          } else {
+            try {
+              const dur = data.start ? Math.max(1, Math.round((Date.now() - data.start) / 60000)) : 1;
+              const res = await createResult(data.b, b64, dur);
+              setData(prev => ({ ...prev, res }));
+              setStep('RESULT');
+            } catch (err) {
+              console.error(err);
+              alert("결과 생성 중 오류가 발생했습니다.");
+            } finally {
+              setLoading(false);
+            }
           }
         };
+        r.readAsDataURL(blob);
       };
 
       const takePhoto = () => {
         const v = vRef.current;
-        if (!v) return;
+        if (!v || !v.videoWidth) return;
         const c = document.createElement('canvas');
         c.width = v.videoWidth; c.height = v.videoHeight;
         c.getContext('2d').drawImage(v, 0, 0);
@@ -240,7 +259,7 @@
           {loading && (
             <div className="fixed inset-0 bg-white/80 z-[100] flex flex-col items-center justify-center">
               <div className="w-8 h-8 border-4 border-slate-200 border-t-[#76D7C4] rounded-full animate-spin mb-3"></div>
-              <p className="font-bold text-slate-600 text-sm">결과물을 만드는 중...</p>
+              <p className="font-bold text-slate-600 text-sm">이미지를 처리 중입니다...</p>
             </div>
           )}
 
@@ -251,7 +270,7 @@
               <p className="text-slate-500 font-medium mb-12 text-sm leading-relaxed px-4">
                 이랬는데~ 요래됐슴당!<br/>청소 전후의 극적인 변화를 기록하세요.
               </p>
-              <button onClick={() => { setStep('CAM'); setMode('BEFORE'); }} className="btn-primary">기록 시작하기</button>
+              <button onClick={() => { setMode('BEFORE'); setStep('CAM'); }} className="btn-primary">기록 시작하기</button>
             </div>
           )}
 
@@ -270,62 +289,4 @@
                 {mode === 'AFTER' && ghost && data.b && <img src={data.b} className="ghost" />}
               </div>
 
-              <div className="h-40 bg-zinc-950 flex justify-between items-center px-10 safe-bottom z-50">
-                <div className="w-12">
-                  {mode === 'AFTER' && (
-                    <button onClick={()=>setGhost(!ghost)} className={`w-12 h-12 rounded-xl border flex flex-col items-center justify-center text-[10px] font-bold ${ghost?'border-white text-white':'border-white/20 text-white/30'}`}>
-                      GHOST
-                    </button>
-                  )}
-                </div>
-                <button onClick={takePhoto} className="w-20 h-20 bg-white rounded-full border-[6px] border-zinc-800 shadow-xl active:scale-95 transition-transform"></button>
-                <button onClick={()=>fRef.current.click()} className="w-12 h-12 bg-zinc-800 rounded-xl flex items-center justify-center text-white">
-                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                </button>
-                <input type="file" ref={fRef} className="hidden" accept="image/*" onChange={(e)=>e.target.files[0] && onCaptured(e.target.files[0])} />
-              </div>
-            </div>
-          )}
-
-          {step === 'CLEAN' && (
-            <div className="flex-1 flex flex-col items-center justify-center px-8 text-center">
-              <div className="relative mb-10">
-                <div className="w-52 h-52 rounded-[2.5rem] overflow-hidden shadow-xl border-4 border-slate-50">
-                  <img src={data.b} className="w-full h-full object-cover grayscale-[0.3]" />
-                </div>
-                <div className="absolute -bottom-3 left-1/2 -translate-x-1/2">
-                  <span className="bg-slate-800 text-white px-4 py-1.5 rounded-full font-bold text-sm shadow-lg">BEFORE</span>
-                </div>
-              </div>
-              <h2 className="text-2xl font-extrabold mb-4 text-slate-800">청소를 완료하셨나요?</h2>
-              <p className="text-slate-500 text-sm mb-10">변화된 공간의 사진을 찍어<br/>비교샷을 완성하세요!</p>
-              <button onClick={()=>{setStep('CAM'); setMode('AFTER');}} className="btn-primary">요래됐슴당 촬영</button>
-              <button onClick={()=>{if(confirm("기록을 삭제할까요?")){localStorage.removeItem(KEY); setData({b:null,start:null,res:null}); setStep('HOME');}}} className="mt-8 text-slate-400 font-bold text-xs underline uppercase tracking-widest">Reset</button>
-            </div>
-          )}
-
-          {step === 'RESULT' && (
-            <div className="flex-1 flex flex-col px-6 py-8 overflow-y-auto">
-              <div className="text-center mt-6 mb-8">
-                <span className="text-[10px] font-bold tracking-[0.2em] text-[#76D7C4] uppercase">Magic Complete</span>
-                <h1 className="text-3xl font-black mt-1">요래됐슴당!</h1>
-              </div>
-              <div className="rounded-2xl overflow-hidden shadow-xl border-2 border-slate-50 mb-8 bg-slate-50">
-                <img src={data.res} className="w-full h-auto" />
-              </div>
-              <div className="space-y-3 pb-8 safe-bottom">
-                <button onClick={()=>{const a=document.createElement('a'); a.href=data.res; a.download=`yorae_${Date.now()}.jpg`; a.click();}} className="btn-primary">이미지 저장하기</button>
-                <button onClick={()=>{localStorage.removeItem(KEY); setData({b:null,start:null,res:null}); setStep('HOME');}} className="btn-secondary">새로 기록하기</button>
-              </div>
-            </div>
-          )}
-        </div>
-      );
-    };
-
-    const container = document.getElementById('root');
-    const root = ReactDOM.createRoot(container);
-    root.render(<App />);
-  </script>
-</body>
-</html>
+              <div className="h
