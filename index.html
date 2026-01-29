@@ -38,11 +38,11 @@
     .animate-float { animation: float 3s ease-in-out infinite; }
     @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
     
-    /* 카메라 영역 수정: 여백 없이 꽉 채우기 */
-    .camera-container {
+    /* 카메라 영역: 여백 제거 및 꽉 채우기 설정 */
+    .camera-area {
       position: relative;
       flex: 1;
-      background-color: #18181b; /* zinc-900 */
+      background-color: #000;
       overflow: hidden;
     }
     video {
@@ -51,24 +51,24 @@
       left: 0;
       width: 100%;
       height: 100%;
-      object-fit: cover; /* 영역을 가득 채우도록 설정 */
+      object-fit: cover; /* 영역을 가득 채우며 비율 유지 */
+      display: block;
     }
     .ghost {
       position: absolute;
-      top: 0;
-      left: 0;
+      inset: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
       opacity: 0.35;
       mix-blend-mode: screen;
       pointer-events: none;
+      z-index: 10;
     }
 
     .safe-top { padding-top: env(safe-area-inset-top, 16px); }
     .safe-bottom { padding-bottom: env(safe-area-inset-bottom, 16px); }
     
-    /* 버튼 스타일 */
     .btn-primary {
       width: 100%;
       padding: 1rem;
@@ -265,7 +265,7 @@
                 <div className="w-9"></div>
               </div>
               
-              <div className="camera-container">
+              <div className="camera-area">
                 <video ref={vRef} autoPlay playsInline muted />
                 {mode === 'AFTER' && ghost && data.b && <img src={data.b} className="ghost" />}
               </div>
